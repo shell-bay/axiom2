@@ -23,7 +23,7 @@ jobs:
 
     - name: Dynamically Generate All Gradle Configuration Files
       run: |
-        # Create the comprehensive root build configuration
+        # Create the comprehensive root build configuration aligned to Kotlin 1.9.0
         cat << 'EOF' > build.gradle
         buildscript {
             repositories {
@@ -32,7 +32,7 @@ jobs:
             }
             dependencies {
                 classpath 'com.android.tools.build:gradle:8.1.0'
-                classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20'
+                classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0'
             }
         }
         allprojects {
@@ -67,6 +67,13 @@ jobs:
                 kotlinOptions {
                     jvmTarget = '17'
                 }
+                buildFeatures {
+                    compose true
+                }
+                composeOptions {
+                    // Match with Kotlin 1.9.0 requirements perfectly
+                    kotlinCompilerExtensionVersion '1.5.1'
+                }
             }
             dependencies {
                 implementation 'androidx.core:core-ktx:1.12.0'
@@ -79,12 +86,13 @@ jobs:
         # Link the app directory layout structural module
         echo "include ':app'" > settings.gradle
 
-        # CRITICAL: Strict low-memory controls to prevent container drops
-        echo "org.gradle.jvmargs=-Xmx1536m -XX:MaxMetaspaceSize=384m" > gradle.properties
+        # Force runner memory limits and enable mandatory AndroidX libraries
+        echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" > gradle.properties
         echo "org.gradle.parallel=false" >> gradle.properties
         echo "android.useAndroidX=true" >> gradle.properties
         echo "kotlin.compiler.execution.strategy=in-process" >> gradle.properties
         echo "android.enableResourceOptimizations=false" >> gradle.properties
+        echo "android.suppressUnsupportedCompileSdk=34" >> gradle.properties
 
         # Ensure directory structures are correctly resolved
         mkdir -p app
@@ -110,7 +118,9 @@ jobs:
       continue-on-error: true
 
     - name: Compile and Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon --no-build-cache --stacktrace
+      run: |
+        export GRADLE_OPTS="-Xmx2048m -XX:MaxMetaspaceSize=512m"
+        ./gradlew assembleDebug --no-daemon --no-build-cache --stacktrace
 
     - name: Export Generated APK Artifact to GitHub
       uses: actions/upload-artifact@v4
