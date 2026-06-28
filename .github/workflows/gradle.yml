@@ -15,15 +15,15 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'
+        distribution: 'zulu'
         java-version: '17'
         cache: 'gradle'
 
     - name: Dynamically Generate All Gradle Configuration Files
       run: |
-        # Create the comprehensive root build configuration
+        # Create the comprehensive root build configuration aligned to Kotlin 1.9.0
         cat << 'EOF' > build.gradle
         buildscript {
             repositories {
@@ -32,7 +32,7 @@ jobs:
             }
             dependencies {
                 classpath 'com.android.tools.build:gradle:8.1.0'
-                classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.20'
+                classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0'
             }
         }
         allprojects {
@@ -71,8 +71,8 @@ jobs:
                     compose true
                 }
                 composeOptions {
-                    // Pinned to fix the compiler version incompatibility error
-                    kotlinCompilerExtensionVersion '1.4.6'
+                    // Downgraded to 1.5.0 to match Kotlin 1.9.0 alignment perfectly
+                    kotlinCompilerExtensionVersion '1.5.0'
                 }
             }
             dependencies {
