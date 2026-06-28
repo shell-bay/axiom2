@@ -9,7 +9,9 @@ import java.util.zip.ZipEntry
 class LinuxEnvironmentManager(private val context: Context) {
     private val TAG = "LinuxEnvManager"
     private val rootfsDir = context.filesDir.absolutePath + "/alpine_rootfs"
-    private val prootBinaryPath = context.filesDir.absolutePath + "/bin/proot"
+    
+    // Use nativeLibraryDir to comply with Android 10+ execution policies
+    private val prootBinaryPath = "${context.applicationInfo.nativeLibraryDir}/libproot.so"
 
     fun isEnvironmentReady(): Boolean {
         return File(rootfsDir).exists() && File(prootBinaryPath).exists()

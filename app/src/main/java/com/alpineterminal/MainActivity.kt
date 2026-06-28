@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 
 enum class AppScreen {
-    TERMINAL, FILES, SETTINGS, EDITOR
+    TERMINAL, FILES, PACKAGES, SETTINGS, EDITOR
 }
 
 class MainActivity : ComponentActivity() {
@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
         
         val terminalViewModel = TerminalViewModel(envManager)
         val fileViewModel = FileViewModel(fileResourceManager)
+        val packageViewModel = PackageInstallerViewModel(envManager, notificationHelper)
         
         val gitHubManager = GitHubManager(this, settingsManager)
         val gitHubViewModel = GitHubViewModel(this.application, gitHubManager, notificationHelper)
@@ -84,6 +85,12 @@ class MainActivity : ComponentActivity() {
                                         icon = { Icon(Icons.Default.Folder, contentDescription = null) }
                                     )
                                     NavigationBarItem(
+                                        selected = currentScreen == AppScreen.PACKAGES,
+                                        onClick = { currentScreen = AppScreen.PACKAGES },
+                                        label = { Text("Packages") },
+                                        icon = { Icon(Icons.Default.List, contentDescription = null) }
+                                    )
+                                    NavigationBarItem(
                                         selected = currentScreen == AppScreen.SETTINGS,
                                         onClick = { currentScreen = AppScreen.SETTINGS },
                                         label = { Text("Settings") },
@@ -109,6 +116,7 @@ class MainActivity : ComponentActivity() {
                                             currentScreen = AppScreen.EDITOR
                                         }
                                     )
+                                    AppScreen.PACKAGES -> PackageInstallerScreen(viewModel = packageViewModel)
                                     AppScreen.SETTINGS -> SettingsScreen(settingsManager)
                                     else -> {}
                                 }

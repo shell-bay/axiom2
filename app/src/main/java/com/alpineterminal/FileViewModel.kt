@@ -63,4 +63,12 @@ class FileViewModel(private val fileManager: FileResourceManager) : ViewModel() 
             refreshFiles()
         }
     }
+
+    fun createFile(name: String, content: String = "") {
+        viewModelScope.launch(Dispatchers.IO) {
+            val path = if (_currentPath.value.isEmpty()) name else "${_currentPath.value}/$name"
+            fileManager.createFile(path, content)
+            refreshFiles()
+        }
+    }
 }

@@ -41,11 +41,16 @@ class FileResourceManager(private val context: Context) {
     fun writeFile(relativePath: String, content: String): Boolean {
         return try {
             val file = File("$rootfsDir/$relativePath")
+            file.parentFile?.mkdirs()
             file.writeText(content)
             true
         } catch (e: Exception) {
             false
         }
+    }
+
+    fun createFile(relativePath: String, content: String = ""): Boolean {
+        return writeFile(relativePath, content)
     }
 
     fun deleteFile(relativePath: String): Boolean {

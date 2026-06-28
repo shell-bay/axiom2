@@ -23,6 +23,39 @@ fun FileBrowserScreen(
     val files by viewModel.files.collectAsState()
     val currentPath by viewModel.currentPath.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
+    var showCreateFileDialog by remember { mutableStateOf(false) }
+    var newFileName by remember { mutableStateOf("") }
+
+    if (showCreateFileDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateFileDialog = false },
+            title = { Text("Create New File") },
+            text = {
+                OutlinedTextField(
+                    value = newFileName,
+                    onValueChange = { newFileName = it },
+                    label = { Text("File name") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newFileName.isNotBlank()) {
+                        viewModel.createFile(newFileName)
+                        newFileName = ""
+                        showCreateFileDialog = false
+                    }
+                }) {
+                    Text("Create")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateFileDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(
@@ -32,26 +65,32 @@ fun FileBrowserScreen(
         )
 
         // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { 
-                searchQuery = it
-                viewModel.setQuery(it)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Search files...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { 
-                        searchQuery = ""
-                        viewModel.setQuery("")
-                    }) {
-                        Icon(Icons.Default.Clear, contentDescription = null)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { 
+                    searchQuery = it
+                    viewModel.setQuery(it)
+                },
+                modifier = Modifier.weight(1f),
+                label = { Text("Search files...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { 
+                            searchQuery = ""
+                            viewModel.setQuery("")
+                        }) {
+                            Icon(Icons.Default.Clear, contentDescription = null)
+                        }
                     }
                 }
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(onClick = { showCreateFileDialog = true }) {
+                Icon(Icons.Default.Add, contentDescription = "Create File")
             }
-        )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
