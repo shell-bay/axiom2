@@ -39,6 +39,7 @@ class VoiceInputManager(private val context: Context) {
                 speechRecognizer.destroy()
             }
             override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
         })
 
         speechRecognizer.startListening(intent)

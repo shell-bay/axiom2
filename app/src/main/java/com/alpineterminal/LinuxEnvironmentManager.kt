@@ -46,9 +46,9 @@ class LinuxEnvironmentManager(private val context: Context) {
         // Create a dummy /bin/sh to simulate a shell
         val binDir = File(rootfsDir, "bin")
         binDir.mkdirs()
-        File(binDir, "sh").writeText("#!/bin/sh
+        File(binDir, "sh").writeText("""#!/bin/sh
 echo 'Welcome to Alpine Linux!'
-/bin/sh")
+/bin/sh""")
     }
 
     private fun downloadProot(url: String) {
@@ -57,8 +57,8 @@ echo 'Welcome to Alpine Linux!'
         if (!binDir.exists()) binDir.mkdirs()
         
         val prootFile = File(prootBinaryPath)
-        prootFile.writeText("#!/bin/sh
-echo 'PRoot simulating execution...'")
+        prootFile.writeText("""#!/bin/sh
+echo 'PRoot simulating execution...'""")
         prootFile.setExecutable(true)
     }
 
@@ -74,8 +74,7 @@ echo 'PRoot simulating execution...'")
             val output = StringBuilder()
             var line: String?
             while (reader.readLine().also { line = it } != null) {
-                output.append(line).append("
-")
+                output.append(line).append("\n")
             }
             process.waitFor()
             output.toString()

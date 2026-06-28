@@ -32,8 +32,7 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
                 onProgress = { p -> _progress.value = p },
                 onComplete = { _isInitializing.value = false },
                 onError = { e -> 
-                    _terminalOutput.value += "Error initializing: ${e.message}
-"
+                    _terminalOutput.value += "Error initializing: ${e.message}\n"
                     _isInitializing.value = false 
                 }
             )
@@ -42,11 +41,9 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
 
     fun sendCommand(command: String) {
         viewModelScope.launch {
-            _terminalOutput.value += "> $command
-"
+            _terminalOutput.value += "> $command\n"
             val result = envManager.executeCommand(command)
-            _terminalOutput.value += result + "
-"
+            _terminalOutput.value += result + "\n"
         }
     }
 

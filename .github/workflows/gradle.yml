@@ -48,10 +48,10 @@ jobs:
             apply plugin: 'com.android.application'
             apply plugin: 'org.jetbrains.kotlin.android'
             android {
-                namespace 'com.example.axiom2'
+                namespace 'com.alpineterminal'
                 compileSdk 34
                 defaultConfig {
-                    applicationId "com.example.axiom2"
+                    applicationId "com.alpineterminal"
                     minSdk 24
                     targetSdk 34
                     versionCode 1
@@ -81,6 +81,17 @@ jobs:
             dependencies {
                 implementation 'androidx.core:core-ktx:1.12.0'
                 implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
+                implementation 'androidx.activity:activity-compose:1.8.0'
+                implementation platform('androidx.compose:compose-bom:2023.08.00')
+                implementation 'androidx.compose.ui:ui'
+                implementation 'androidx.compose.ui:ui-graphics'
+                implementation 'androidx.compose.ui:ui-tooling-preview'
+                implementation 'androidx.compose.material3:material3'
+                implementation 'androidx.compose.material:material-icons-extended'
+                implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+                implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+                implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+                implementation 'com.squareup.okhttp3:okhttp:4.11.0'
                 testImplementation 'junit:junit:4.13.2'
             }
         }
@@ -102,19 +113,7 @@ jobs:
 
     - name: Patch Source Code Compiler Errors
       run: |
-        # 1. Fix missing File import in GitHubManager.kt
-        FILE_PATH_GH="app/src/main/java/com/alpineterminal/GitHubManager.kt"
-        if [ -f "$FILE_PATH_GH" ]; then
-          sed -i '1i import java.io.File' "$FILE_PATH_GH"
-          echo "Patched GitHubManager.kt with java.io.File import."
-        fi
-
-        # 2. Safely fix invalid removeAt syntax in FileViewModel.kt
-        FILE_PATH_VM="app/src/main/java/com/alpineterminal/FileViewModel.kt"
-        if [ -f "$FILE_PATH_VM" ]; then
-          sed -i 's/\.removeAt(/.remove(/g' "$FILE_PATH_VM"
-          echo "Patched FileViewModel.kt to resolve collection modification mismatch."
-        fi
+        echo "No patching needed, source files are fixed!"
 
     - name: Grant Execute Permission for Gradle Wrapper
       run: chmod +x gradlew
