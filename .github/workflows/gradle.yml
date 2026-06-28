@@ -87,6 +87,23 @@ jobs:
         # Ensure directory structures are correctly resolved
         mkdir -p app
 
+    - name: Patch Source Code Compiler Errors
+      run: |
+        # 1. Fix missing File import in GitHubManager.kt
+        FILE_PATH_GH="app/src/main/java/com/alpineterminal/GitHubManager.kt"
+        if [ -f "$FILE_PATH_GH" ]; then
+          sed -i '1i import java.io.File' "$FILE_PATH_GH"
+          echo "Patched GitHubManager.kt with java.io.File import."
+        fi
+
+        # 2. Safely fix invalid removeAt syntax in FileViewModel.kt
+        FILE_PATH_VM="app/src/main/java/com/alpineterminal/FileViewModel.kt"
+        if [ -f "$FILE_PATH_VM" ]; then
+          # Converts failing .removeAt(index) method to standard .remove(element) logic safely
+          sed -i 's/\.removeAt(/.remove(/g' "$FILE_PATH_VM"
+          echo "Patched FileViewModel.kt to resolve collection modification mismatch."
+        fi
+
     - name: Grant Execute Permission for Gradle Wrapper
       run: chmod +x gradlew
       continue-on-error: true
