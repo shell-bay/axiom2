@@ -16,9 +16,7 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
-            filter {
-                name = "*.xml"
-            }
+            useSupportLibrary true
         }
     }
 
