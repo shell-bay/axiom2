@@ -79,9 +79,10 @@ jobs:
         # Link the app directory layout structural module
         echo "include ':app'" > settings.gradle
 
-        # Force severe runner memory limits to eliminate out-of-memory container drops
+        # Force runner memory limits and enable mandatory AndroidX libraries
         echo "org.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m" > gradle.properties
         echo "org.gradle.parallel=false" >> gradle.properties
+        echo "android.useAndroidX=true" >> gradle.properties
 
         # Ensure directory structures are correctly resolved
         mkdir -p app
