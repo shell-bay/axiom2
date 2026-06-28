@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun FileBrowserScreen(
     viewModel: FileViewModel,
+    gitHubViewModel: GitHubViewModel,
     onFileClick: (AlpineFile) -> Unit
 ) {
     val files by viewModel.files.collectAsState()

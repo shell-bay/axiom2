@@ -14,7 +14,8 @@ import androidx.compose.ui.unit.dp
 fun SettingsScreen(settingsManager: SettingsManager) {
     val themeMode by settingsManager.themeMode.collectAsState()
     val fontSize by settingsManager.terminalFontSize.collectAsState()
-    var githubToken by remember { mutableStateOf(settingsManager.githubToken.collectAsState().value) }
+    val currentGithubToken by settingsManager.githubToken.collectAsState()
+    var githubToken by remember { mutableStateOf(currentGithubToken) }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text(

@@ -1,7 +1,7 @@
 package com.alpineterminal
 
 import android.app.Application
-import android.app.Application.AndroidViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch

@@ -42,7 +42,7 @@ class FileViewModel(private val fileManager: FileResourceManager) : ViewModel() 
         val current = _currentPath.value
         if (current.isEmpty()) return
         
-        val parts = current.split("/").filter { it.isNotEmpty() }
+        val parts = current.split("/").filter { it.isNotEmpty() }.toMutableList()
         if (parts.isNotEmpty()) {
             parts.removeAt(parts.size - 1)
             _currentPath.value = parts.joinToString("/")
