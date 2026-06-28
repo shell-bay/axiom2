@@ -20,11 +20,9 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x AlpineTerminal/gradlew
-
     - name: Build with Gradle
-      run: ./AlpineTerminal/gradlew assembleDebug
+      run: gradle assembleDebug
+      working-directory: AlpineTerminal
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
