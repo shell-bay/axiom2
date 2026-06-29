@@ -118,7 +118,6 @@ private fun TerminalSessionScreen(viewModel: TerminalViewModel, settingsManager:
     val focusRequester = remember { FocusRequester() }
 
     var ctrl by remember { mutableStateOf(false) }; var alt by remember { mutableStateOf(false) }
-    val context = LocalContext.current
     var inputText by remember { mutableStateOf("") }
 
     Column(modifier = Modifier.fillMaxSize().background(TerminalBg)) {
@@ -126,34 +125,15 @@ private fun TerminalSessionScreen(viewModel: TerminalViewModel, settingsManager:
         TerminalOutputArea(lines, cursorRow, cursorCol, cursorVisible, fontSize,
             onZoom = { delta -> settingsManager.adjustFontSize(delta) },
             onCopyPlain = { viewModel.getPlainTerminalText() },
+            inputText = inputText,
+            onInputChange = { inputText = it },
+            onInputSubmit = {
+                val cmd = inputText.trim()
+                if (cmd.isNotEmpty()) viewModel.sendCommand(cmd) else viewModel.sendEnter()
+                inputText = ""
+            },
+            focusRequester = focusRequester,
             modifier = Modifier.weight(1f))
-        Row(modifier = Modifier.fillMaxWidth().background(TerminalSurface).padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            BasicTextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                textStyle = TextStyle(color = TextMain, fontFamily = FontFamily.Monospace, fontSize = fontSize.sp),
-                cursorBrush = SolidColor(AccentCyan),
-                modifier = Modifier.weight(1f)
-                    .onPreviewKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyUp && event.key == Key.Enter) {
-                            val cmd = inputText.trim()
-                            if (cmd.isNotEmpty()) viewModel.sendCommand(cmd) else viewModel.sendEnter()
-                            inputText = ""
-                            true
-                        } else false
-                    }
-                    .focusRequester(focusRequester),
-                singleLine = true,
-                decorationBox = { inner ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("$ ", color = AccentGreen, fontFamily = FontFamily.Monospace,
-                            fontSize = fontSize.sp, fontWeight = FontWeight.Bold)
-                        Box(modifier = Modifier.weight(1f)) { inner() }
-                    }
-                }
-            )
-        }
         ExtraKeysRow(viewModel, ctrl, alt, { ctrl = it }, { alt = it })
     }
 }
@@ -186,7 +166,9 @@ private fun TerminalToolbar(viewModel: TerminalViewModel, isConnected: Boolean) 
 @Composable
 private fun TerminalOutputArea(
     lines: List<StyledLine>, cursorRow: Int, cursorCol: Int, cursorVisible: Boolean,
-    fontSize: Int, onZoom: (Int) -> Unit, onCopyPlain: () -> String, modifier: Modifier = Modifier
+    fontSize: Int, onZoom: (Int) -> Unit, onCopyPlain: () -> String,
+    inputText: String, onInputChange: (String) -> Unit, onInputSubmit: () -> Unit,
+    focusRequester: FocusRequester, modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
     val context = LocalContext.current
@@ -218,6 +200,10 @@ private fun TerminalOutputArea(
         }
     }
 
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     Box(modifier = modifier.fillMaxWidth()
         .pointerInput(Unit) {
             detectTransformGestures { _, _, zoom, _ ->
@@ -226,7 +212,8 @@ private fun TerminalOutputArea(
         }
         .pointerInput(Unit) {
             detectTapGestures(
-                onLongPress = { showCopyMenu = true }
+                onLongPress = { showCopyMenu = true },
+                onTap = { focusRequester.requestFocus() }
             )
         }
     ) {
@@ -273,7 +260,46 @@ private fun TerminalOutputArea(
                     }
                 }
             }
+
+            item {
+                InputLine(
+                    inputText = inputText,
+                    onInputChange = onInputChange,
+                    onInputSubmit = onInputSubmit,
+                    fontSize = fontSize,
+                    focusRequester = focusRequester
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun InputLine(
+    inputText: String, onInputChange: (String) -> Unit, onInputSubmit: () -> Unit,
+    fontSize: Int, focusRequester: FocusRequester
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 0.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("$ ", color = AccentGreen, fontFamily = FontFamily.Monospace,
+            fontSize = fontSize.sp, fontWeight = FontWeight.Bold)
+        BasicTextField(
+            value = inputText,
+            onValueChange = onInputChange,
+            textStyle = TextStyle(color = TextMain, fontFamily = FontFamily.Monospace, fontSize = fontSize.sp),
+            cursorBrush = SolidColor(AccentCyan),
+            modifier = Modifier.weight(1f)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyUp && event.key == Key.Enter) {
+                        onInputSubmit()
+                        true
+                    } else false
+                }
+                .focusRequester(focusRequester),
+            singleLine = true
+        )
     }
 }
 
