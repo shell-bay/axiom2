@@ -137,26 +137,11 @@ class LinuxEnvironmentManager(private val context: Context) {
             resolvConf.parentFile?.mkdirs()
             resolvConf.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
         }
-        val mergedUsrLinks = mapOf("bin" to "usr/bin", "sbin" to "usr/sbin", "lib" to "usr/lib", "lib64" to "usr/lib")
-        for ((linkName, target) in mergedUsrLinks) {
-            val linkFile = File(rootfsDir, linkName)
-            val linkPath = linkFile.toPath()
-            val isSymlink = try { java.nio.file.Files.isSymbolicLink(linkPath) } catch (_: Exception) { false }
-            if (isSymlink) {
-                java.nio.file.Files.delete(linkPath)
-            } else if (linkFile.isDirectory()) {
-                if (linkFile.list()?.isNotEmpty() == true && linkName == "bin") continue
-                linkFile.deleteRecursively()
-            } else if (linkFile.exists()) {
-                linkFile.delete()
-            }
-            if (!linkFile.exists()) {
-                try {
-                    java.nio.file.Files.createSymbolicLink(linkPath, java.nio.file.Paths.get(target))
-                } catch (_: Exception) {
-                    linkFile.mkdirs()
-                }
-            }
+        for (dirName in listOf("bin", "sbin", "lib", "lib64")) {
+            val dir = File(rootfsDir, dirName)
+            if (dir.isDirectory() && dir.list()?.isNotEmpty() == true) continue
+            dir.delete()
+            dir.mkdirs()
         }
         val shFile = File(rootfsDir, "bin/sh")
         if (!shFile.exists()) {
@@ -211,19 +196,33 @@ alias la='ls -A'
                     val prefix = readTarStr(header, 345, 155)
                     val fullPath = if (prefix.isNotEmpty()) "$prefix/$name" else name
                     val entry = File(destDir, fullPath)
-                    if (typeFlag == '5' || name.endsWith("/")) {
-                        entry.mkdirs()
-                    } else {
-                        entry.parentFile?.mkdirs()
-                        FileOutputStream(entry).use { fos ->
-                            var remaining = size
-                            val dataBuf = ByteArray(4096)
-                            while (remaining > 0) {
-                                val toRead = minOf(dataBuf.size.toLong(), remaining).toInt()
-                                val n = gzIn.read(dataBuf, 0, toRead)
-                                if (n == -1) break
-                                fos.write(dataBuf, 0, n)
-                                remaining -= n
+                    when (typeFlag) {
+                        '5' -> entry.mkdirs()
+                        '2' -> {
+                            val linkTarget = readTarStr(header, 157, 100)
+                            try {
+                                java.nio.file.Files.createSymbolicLink(entry.toPath(), java.nio.file.Paths.get(linkTarget))
+                            } catch (_: Exception) {
+                                if (linkTarget.startsWith("/")) {
+                                    val absTarget = File(rootfsDir, linkTarget.removePrefix("/"))
+                                    if (absTarget.isDirectory()) {
+                                        entry.mkdirs()
+                                    }
+                                }
+                            }
+                        }
+                        else -> {
+                            entry.parentFile?.mkdirs()
+                            FileOutputStream(entry).use { fos ->
+                                var remaining = size
+                                val dataBuf = ByteArray(4096)
+                                while (remaining > 0) {
+                                    val toRead = minOf(dataBuf.size.toLong(), remaining).toInt()
+                                    val n = gzIn.read(dataBuf, 0, toRead)
+                                    if (n == -1) break
+                                    fos.write(dataBuf, 0, n)
+                                    remaining -= n
+                                }
                             }
                         }
                     }
