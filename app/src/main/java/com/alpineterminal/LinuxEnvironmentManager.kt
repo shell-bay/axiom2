@@ -42,6 +42,9 @@ class LinuxEnvironmentManager(private val context: Context) {
     private val prootBinary: File
         get() = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
 
+    private val nativeLibDir: String
+        get() = context.applicationInfo.nativeLibraryDir
+
     private var shellProcess: Process? = null
     private var shellStdin: OutputStream? = null
     private var shellStdout: InputStream? = null
@@ -171,6 +174,7 @@ alias la='ls -A'
         File(rootfsDir, "root").mkdirs()
         File(rootfsDir, "tmp").mkdirs()
         File(rootfsDir, "dev/shm").mkdirs()
+        File(rootfsDir, "data/data/com.termux/files/usr/tmp").mkdirs()
         _setupProgress.value = 0.95f
     }
 
@@ -263,11 +267,13 @@ alias la='ls -A'
                     return@launch
                 }
                 val shellPath = findShell()
+                val termuxTmp = File(rootfsDir, "data/data/com.termux/files/usr/tmp").absolutePath
                 val cmd = mutableListOf(
                     prootPath, "-r", rootfsDir.absolutePath, "-0",
                     "-b", "/dev", "-b", "/proc", "-b", "/sys",
                     "-b", "${context.filesDir.absolutePath}:/root/host",
                     "-b", "/system", "-b", "/vendor",
+                    "-b", "$termuxTmp:/data/data/com.termux/files/usr/tmp",
                     "-w", "/root", shellPath, "--login", "-i"
                 )
                 val env = mutableMapOf(
@@ -279,7 +285,8 @@ alias la='ls -A'
                     "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                     "TMPDIR" to "/tmp",
                     "HOSTNAME" to "axiom",
-                    "PROOT_NO_SECCOMP" to "1"
+                    "PROOT_NO_SECCOMP" to "1",
+                    "LD_LIBRARY_PATH" to nativeLibDir
                 )
                 val pb = ProcessBuilder(cmd)
                 pb.environment().clear()
@@ -381,6 +388,7 @@ alias la='ls -A'
             }
             if (!prootBinary.exists()) return "Error: proot binary not found"
             val shellPath = findShell()
+            val termuxTmp = File(rootfsDir, "data/data/com.termux/files/usr/tmp").absolutePath
             val envMap = mutableMapOf(
                 "TERM" to "xterm-256color",
                 "HOME" to "/root",
@@ -389,11 +397,13 @@ alias la='ls -A'
                 "LOGNAME" to "root",
                 "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                 "TMPDIR" to "/tmp",
-                "PROOT_NO_SECCOMP" to "1"
+                "PROOT_NO_SECCOMP" to "1",
+                "LD_LIBRARY_PATH" to nativeLibDir
             )
             val pb = ProcessBuilder(
                 prootPath, "-r", rootfsDir.absolutePath, "-0",
                 "-b", "/dev", "-b", "/proc", "-b", "/sys",
+                "-b", "$termuxTmp:/data/data/com.termux/files/usr/tmp",
                 "-w", "/root",
                 shellPath, "-c", command
             )
