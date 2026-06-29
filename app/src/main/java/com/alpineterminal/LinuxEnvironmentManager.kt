@@ -135,7 +135,7 @@ export TERM=xterm-256color
 export HOME=/root
 export SHELL=/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-export PS1='\u@axiom:\w\$ '
+export PS1='\[\e[1;32m\]\u@axiom\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '
 alias ll='ls -la'
 alias la='ls -A'
 """)
@@ -143,6 +143,8 @@ alias la='ls -A'
         }
         File(rootfsDir, "root").mkdirs()
         File(rootfsDir, "tmp").mkdirs()
+        File(rootfsDir, "data/data/com.termux/files/usr/tmp").mkdirs()
+        File(rootfsDir, "dev/shm").mkdirs()
         _setupProgress.value = 0.95f
     }
 
@@ -211,23 +213,27 @@ alias la='ls -A'
         scope.launch {
             try {
                 val prootPath = prootBinary.absolutePath
+                val shellPath = if (File(rootfsDir, "bin/bash").exists()) "/bin/bash" else "/bin/sh"
+                val termuxTmp = File(rootfsDir, "data/data/com.termux/files/usr/tmp").absolutePath
                 val cmd = mutableListOf(
                     prootPath, "-r", rootfsDir.absolutePath, "-0",
                     "-b", "/dev", "-b", "/proc", "-b", "/sys",
                     "-b", "${context.filesDir.absolutePath}:/root/host",
                     "-b", "/system", "-b", "/vendor",
-                    "-w", "/root", "/bin/bash", "--login", "-i"
+                    "-b", "$termuxTmp:/data/data/com.termux/files/usr/tmp",
+                    "-w", "/root", shellPath, "--login", "-i"
                 )
                 val env = mutableMapOf(
                     "TERM" to "xterm-256color",
                     "HOME" to "/root",
-                    "SHELL" to "/bin/bash",
+                    "SHELL" to shellPath,
                     "USER" to "root",
                     "LOGNAME" to "root",
                     "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                     "TMPDIR" to "/tmp",
                     "HOSTNAME" to "axiom",
-                    "LD_LIBRARY_PATH" to nativeLibDir
+                    "LD_LIBRARY_PATH" to nativeLibDir,
+                    "PROOT_TMP_DIR" to "/tmp"
                 )
                 val pb = ProcessBuilder(cmd)
                 pb.environment().putAll(env)
@@ -321,11 +327,19 @@ alias la='ls -A'
     fun executeCommand(command: String): String {
         return try {
             val prootPath = prootBinary.absolutePath
-            val envMap = mapOf("LD_LIBRARY_PATH" to nativeLibDir)
+            val shellPath = if (File(rootfsDir, "bin/bash").exists()) "/bin/bash" else "/bin/sh"
+            val termuxTmp = File(rootfsDir, "data/data/com.termux/files/usr/tmp").absolutePath
+            val envMap = mutableMapOf(
+                "LD_LIBRARY_PATH" to nativeLibDir,
+                "TMPDIR" to "/tmp",
+                "HOME" to "/root",
+                "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            )
             val pb = ProcessBuilder(
                 prootPath, "-r", rootfsDir.absolutePath, "-0",
                 "-b", "/dev", "-b", "/proc", "-b", "/sys",
-                "/bin/bash", "-c", command
+                "-b", "$termuxTmp:/data/data/com.termux/files/usr/tmp",
+                shellPath, "-c", command
             )
             pb.environment().putAll(envMap)
             pb.redirectErrorStream(true)

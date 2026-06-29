@@ -29,12 +29,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.isActive
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -121,15 +118,41 @@ private fun TerminalSessionScreen(viewModel: TerminalViewModel, settingsManager:
     val focusRequester = remember { FocusRequester() }
 
     var ctrl by remember { mutableStateOf(false) }; var alt by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var inputText by remember { mutableStateOf("") }
+
     Column(modifier = Modifier.fillMaxSize().background(TerminalBg)) {
         TerminalToolbar(viewModel, viewModel.isShellRunning.value)
-        Box(modifier = Modifier.weight(1f)) {
-            TerminalOutputArea(lines, cursorRow, cursorCol, cursorVisible, fontSize,
-                onZoom = { delta -> settingsManager.adjustFontSize(delta) },
-                onCopyPlain = { viewModel.getPlainTerminalText() },
-                onTap = { focusRequester.requestFocus() },
-                modifier = Modifier.fillMaxSize())
-            TerminalKeyboardCapture(viewModel, focusRequester, fontSize)
+        TerminalOutputArea(lines, cursorRow, cursorCol, cursorVisible, fontSize,
+            onZoom = { delta -> settingsManager.adjustFontSize(delta) },
+            onCopyPlain = { viewModel.getPlainTerminalText() },
+            modifier = Modifier.weight(1f))
+        Row(modifier = Modifier.fillMaxWidth().background(TerminalSurface).padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            BasicTextField(
+                value = inputText,
+                onValueChange = { inputText = it },
+                textStyle = TextStyle(color = TextMain, fontFamily = FontFamily.Monospace, fontSize = fontSize.sp),
+                cursorBrush = SolidColor(AccentCyan),
+                modifier = Modifier.weight(1f)
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyUp && event.key == Key.Enter) {
+                            val cmd = inputText.trim()
+                            if (cmd.isNotEmpty()) viewModel.sendCommand(cmd) else viewModel.sendEnter()
+                            inputText = ""
+                            true
+                        } else false
+                    }
+                    .focusRequester(focusRequester),
+                singleLine = true,
+                decorationBox = { inner ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("$ ", color = AccentGreen, fontFamily = FontFamily.Monospace,
+                            fontSize = fontSize.sp, fontWeight = FontWeight.Bold)
+                        Box(modifier = Modifier.weight(1f)) { inner() }
+                    }
+                }
+            )
         }
         ExtraKeysRow(viewModel, ctrl, alt, { ctrl = it }, { alt = it })
     }
@@ -163,8 +186,7 @@ private fun TerminalToolbar(viewModel: TerminalViewModel, isConnected: Boolean) 
 @Composable
 private fun TerminalOutputArea(
     lines: List<StyledLine>, cursorRow: Int, cursorCol: Int, cursorVisible: Boolean,
-    fontSize: Int, onZoom: (Int) -> Unit, onCopyPlain: () -> String,
-    onTap: () -> Unit = {}, modifier: Modifier = Modifier
+    fontSize: Int, onZoom: (Int) -> Unit, onCopyPlain: () -> String, modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
     val context = LocalContext.current
@@ -204,7 +226,6 @@ private fun TerminalOutputArea(
         }
         .pointerInput(Unit) {
             detectTapGestures(
-                onTap = { onTap() },
                 onLongPress = { showCopyMenu = true }
             )
         }
@@ -299,35 +320,6 @@ private fun cropSegmentsFrom(segments: List<StyledSegment>, start: Int): List<St
         else if (started) r.add(s)
         off = e }
     return r
-}
-
-@Composable
-private fun TerminalKeyboardCapture(viewModel: TerminalViewModel, focusRequester: FocusRequester, fontSize: Int) {
-    var textState by remember { mutableStateOf(TextFieldValue("")) }
-
-    BasicTextField(
-        value = textState,
-        onValueChange = { newVal ->
-            val oldLen = textState.text.length
-            val newLen = newVal.text.length
-            if (newLen > oldLen) {
-                val newChars = newVal.text.substring(oldLen)
-                for (c in newChars) {
-                    when (c) {
-                        '\n' -> viewModel.sendEnter()
-                        else -> viewModel.sendText(c.toString())
-                    }
-                }
-            }
-            textState = TextFieldValue("")
-        },
-        modifier = Modifier
-            .width(1.dp).height(1.dp)
-            .focusRequester(focusRequester),
-        textStyle = TextStyle(color = Color.Transparent, fontSize = fontSize.sp),
-        cursorBrush = SolidColor(Color.Transparent),
-        singleLine = true
-    )
 }
 
 @Composable
