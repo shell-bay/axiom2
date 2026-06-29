@@ -70,7 +70,7 @@ class LinuxEnvironmentManager(private val context: Context) {
     fun needsSetup(): Boolean {
         if (!prootBinary.exists() || !prootBinary.canRead()) return true
         if (!rootfsDir.exists() || !rootfsDir.isDirectory) return true
-        return !File(rootfsDir, "bin/sh").exists()
+        return !File(rootfsDir, "bin/bash").exists()
     }
 
     fun performSetup(onComplete: () -> Unit) {
@@ -91,7 +91,7 @@ class LinuxEnvironmentManager(private val context: Context) {
     }
 
     private suspend fun ensureRootfsDir() {
-        if (File(rootfsDir, "bin/sh").exists()) {
+        if (File(rootfsDir, "bin/bash").exists() || File(rootfsDir, "bin/sh").exists()) {
             _setupProgress.value = 1f
             _setupMessage.value = "Rootfs found"
             return
@@ -119,6 +119,15 @@ class LinuxEnvironmentManager(private val context: Context) {
         if (!resolvConf.exists() || resolvConf.readText().isBlank()) {
             resolvConf.parentFile?.mkdirs()
             resolvConf.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
+        }
+        val shFile = File(rootfsDir, "bin/sh")
+        if (!shFile.exists()) {
+            val bashFile = File(rootfsDir, "bin/bash")
+            if (bashFile.exists()) {
+                shFile.parentFile?.mkdirs()
+                shFile.writeText("#!/bin/bash\nexec /bin/bash \"$@\"\n")
+                shFile.setExecutable(true)
+            }
         }
         val profile = File(rootfsDir, "etc/profile")
         if (profile.exists()) {
@@ -305,7 +314,7 @@ alias la='ls -A'
 
     fun restartShell() { stopShell(); startShell() }
 
-    fun isEnvironmentReady(): Boolean = rootfsDir.exists() && File(rootfsDir, "bin/sh").exists()
+    fun isEnvironmentReady(): Boolean = rootfsDir.exists() && (File(rootfsDir, "bin/bash").exists() || File(rootfsDir, "bin/sh").exists())
 
     fun resetEnvironment() {
         stopShell()
@@ -318,13 +327,18 @@ alias la='ls -A'
             val prootPath = prootBinary.absolutePath
             val shellPath = if (File(rootfsDir, "bin/bash").exists()) "/bin/bash" else "/bin/sh"
             val envMap = mutableMapOf(
-                "TMPDIR" to "/tmp",
+                "TERM" to "xterm-256color",
                 "HOME" to "/root",
-                "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                "SHELL" to shellPath,
+                "USER" to "root",
+                "LOGNAME" to "root",
+                "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "TMPDIR" to "/tmp"
             )
             val pb = ProcessBuilder(
                 prootPath, "-r", rootfsDir.absolutePath, "-0",
                 "-b", "/dev", "-b", "/proc", "-b", "/sys",
+                "-w", "/root",
                 shellPath, "-c", command
             )
             pb.environment().putAll(envMap)

@@ -287,7 +287,18 @@ private fun InputLine(
             fontSize = fontSize.sp, fontWeight = FontWeight.Bold)
         BasicTextField(
             value = inputText,
-            onValueChange = onInputChange,
+            onValueChange = { newVal ->
+                val newlineIdx = newVal.indexOf('\n')
+                if (newlineIdx >= 0) {
+                    val textBefore = newVal.substring(0, newlineIdx)
+                    if (textBefore.isNotEmpty()) {
+                        onInputChange(textBefore)
+                    }
+                    onInputSubmit()
+                } else {
+                    onInputChange(newVal)
+                }
+            },
             textStyle = TextStyle(color = TextMain, fontFamily = FontFamily.Monospace, fontSize = fontSize.sp),
             cursorBrush = SolidColor(AccentCyan),
             modifier = Modifier.weight(1f)
@@ -298,7 +309,7 @@ private fun InputLine(
                     } else false
                 }
                 .focusRequester(focusRequester),
-            singleLine = true
+            maxLines = 1
         )
     }
 }
