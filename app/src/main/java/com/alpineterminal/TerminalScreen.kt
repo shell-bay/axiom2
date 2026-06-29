@@ -54,72 +54,58 @@ fun TerminalScreen(
     settingsManager: SettingsManager,
     voiceInputManager: VoiceInputManager
 ) {
-    val needsSetup by viewModel.needsSetup
     val setupState by viewModel.setupState
     val setupProgress by viewModel.setupProgress
     val setupMessage by viewModel.setupMessage
 
-    if (needsSetup || setupState == LinuxEnvironmentManager.SetupState.ERROR) {
-        SetupScreen(setupState, setupProgress, setupMessage, { viewModel.startSetup() }, { viewModel.resetEnvironment() })
-    } else {
-        TerminalSessionScreen(viewModel, settingsManager, voiceInputManager)
+    when {
+        setupState == LinuxEnvironmentManager.SetupState.ERROR -> {
+            SetupErrorScreen(setupMessage, { viewModel.resetEnvironment() })
+        }
+        setupState != LinuxEnvironmentManager.SetupState.READY -> {
+            LoadingScreen(setupState, setupProgress, setupMessage)
+        }
+        else -> {
+            TerminalSessionScreen(viewModel, settingsManager, voiceInputManager)
+        }
     }
 }
 
 @Composable
-private fun SetupScreen(
-    setupState: LinuxEnvironmentManager.SetupState, setupProgress: Float, setupMessage: String,
-    onStartSetup: () -> Unit, onReset: () -> Unit
+private fun LoadingScreen(
+    setupState: LinuxEnvironmentManager.SetupState, setupProgress: Float, setupMessage: String
 ) {
-    val isWorking = setupState == LinuxEnvironmentManager.SetupState.EXTRACTING_ROOTFS || setupState == LinuxEnvironmentManager.SetupState.CONFIGURING_ENV
+    val phase = remember { mutableStateOf(0f) }
+    LaunchedEffect(Unit) {
+        phase.value = 1f
+    }
     Box(modifier = Modifier.fillMaxSize().background(TerminalBg), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-            Icon(Icons.Default.Terminal, null, tint = AccentGreen, modifier = Modifier.size(64.dp))
-            Spacer(modifier = Modifier.height(24.dp))
-            Text("Axiom Alpine", color = TextMain, fontSize = 28.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-            Text("Terminal Emulator", color = TextDim, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
-            Spacer(modifier = Modifier.height(32.dp))
-            Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), colors = CardDefaults.cardColors(containerColor = TerminalSurface), shape = RoundedCornerShape(12.dp)) {
-                Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    when (setupState) {
-                        LinuxEnvironmentManager.SetupState.IDLE -> {
-                            Text("Alpine Linux Environment", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Extract and configure the bundled Alpine Linux root filesystem.", color = TextDim, fontSize = 13.sp)
-                            Spacer(modifier = Modifier.height(24.dp))
-                            Button(onClick = onStartSetup, colors = ButtonDefaults.buttonColors(containerColor = AccentGreen), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
-                                Icon(Icons.Default.Unarchive, null, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(8.dp)); Text("Extract & Install")
-                            }
-                        }
-                        LinuxEnvironmentManager.SetupState.ERROR -> {
-                            Icon(Icons.Default.Warning, null, tint = AccentRed, modifier = Modifier.size(48.dp))
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text("Setup Failed", color = AccentRed, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(setupMessage, color = TextDim, fontSize = 13.sp)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = onStartSetup, colors = ButtonDefaults.buttonColors(containerColor = AccentBlue), modifier = Modifier.fillMaxWidth()) { Text("Retry Setup") }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedButton(onClick = onReset, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentRed)) { Text("Reset Environment") }
-                        }
-                        else -> {
-                            val icon = when (setupState) {
-                                LinuxEnvironmentManager.SetupState.EXTRACTING_ROOTFS -> Icons.Default.Unarchive
-                                LinuxEnvironmentManager.SetupState.CONFIGURING_ENV -> Icons.Default.Tune
-                                LinuxEnvironmentManager.SetupState.READY -> Icons.Default.CheckCircle
-                                else -> Icons.Default.HourglassEmpty
-                            }
-                            Icon(icon, null, tint = if (setupState == LinuxEnvironmentManager.SetupState.READY) AccentGreen else AccentCyan, modifier = Modifier.size(40.dp))
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(setupMessage, color = TextMain, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            LinearProgressIndicator(progress = setupProgress, modifier = Modifier.fillMaxWidth().height(6.dp), color = AccentGreen, trackColor = Color(0xFF21262D))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("${(setupProgress * 100).toInt()}%", color = TextDim, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                        }
-                    }
-                }
+            Text("Axiom", color = AccentGreen, fontSize = 36.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            Text("Terminal", color = TextDim, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+            Spacer(modifier = Modifier.height(48.dp))
+            if (setupState == LinuxEnvironmentManager.SetupState.EXTRACTING_ROOTFS || setupState == LinuxEnvironmentManager.SetupState.CONFIGURING_ENV) {
+                LinearProgressIndicator(progress = setupProgress, modifier = Modifier.width(200.dp).height(4.dp), color = AccentGreen, trackColor = Color(0xFF21262D))
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(setupMessage, color = TextDim, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+            } else {
+                CircularProgressIndicator(color = AccentGreen, modifier = Modifier.size(32.dp), strokeWidth = 3.dp)
             }
+        }
+    }
+}
+
+@Composable
+private fun SetupErrorScreen(message: String, onReset: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().background(TerminalBg), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
+            Icon(Icons.Default.Warning, null, tint = AccentRed, modifier = Modifier.size(48.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Setup Failed", color = AccentRed, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(message, color = TextDim, fontSize = 13.sp)
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onReset, colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)) { Text("Retry") }
         }
     }
 }

@@ -10,34 +10,33 @@ import java.io.*
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
-data class AlpineArch(
+data class CpuArch(
     val abi: String,
-    val alpineArch: String,
-    val alpineVersion: String = "3.21"
+    val arch: String
 ) {
     companion object {
-        fun detect(): AlpineArch {
+        fun detect(): CpuArch {
             val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
-            val alpineArch = when {
+            val arch = when {
                 abi.contains("arm64") || abi.contains("aarch64") -> "aarch64"
                 abi.contains("armeabi") || abi.contains("armv7") -> "armv7"
                 abi.contains("x86_64") -> "x86_64"
                 abi.contains("x86") -> "x86"
                 else -> "aarch64"
             }
-            return AlpineArch(abi, alpineArch)
+            return CpuArch(abi, arch)
         }
     }
 }
 
 private const val TAG = "LinuxEnvManager"
-private const val ROOTFS_DIR_NAME = "alpine_rootfs"
+private const val ROOTFS_DIR_NAME = "axiom_rootfs"
 private const val SHELL_TIMEOUT_MS = 30000L
 private const val COMMAND_TIMEOUT_MS = 60000L
 
 class LinuxEnvironmentManager(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val arch = AlpineArch.detect()
+    private val arch = CpuArch.detect()
     private val rootfsDir = File(context.filesDir, ROOTFS_DIR_NAME)
 
     private val prootBinary: File
@@ -104,13 +103,13 @@ class LinuxEnvironmentManager(private val context: Context) {
             return
         }
         _setupState.value = SetupState.EXTRACTING_ROOTFS
-        _setupMessage.value = "Extracting Alpine Linux..."
+        _setupMessage.value = "Extracting environment..."
         rootfsDir.mkdirs()
 
         withTimeout(120_000L) {
-            context.resources.openRawResourceFd(R.raw.alpine_minirootfs).use { fd ->
+            context.resources.openRawResourceFd(R.raw.axiom_rootfs).use { fd ->
                 val totalBytes = fd?.length ?: 0L
-                val stream = fd?.createInputStream() ?: throw IOException("Cannot read alpine_minirootfs.tgz")
+                val stream = fd?.createInputStream() ?: throw IOException("Cannot read rootfs archive")
                 extractTarGz(stream, rootfsDir, totalBytes) { p ->
                     _setupProgress.value = p
                 }
@@ -121,7 +120,7 @@ class LinuxEnvironmentManager(private val context: Context) {
 
     private suspend fun configureRootfs() {
         _setupState.value = SetupState.CONFIGURING_ENV
-        _setupMessage.value = "Configuring Alpine..."
+        _setupMessage.value = "Configuring environment..."
         val resolvConf = File(rootfsDir, "etc/resolv.conf")
         if (!resolvConf.exists() || resolvConf.readText().isBlank()) {
             resolvConf.parentFile?.mkdirs()
@@ -130,16 +129,20 @@ class LinuxEnvironmentManager(private val context: Context) {
         val profile = File(rootfsDir, "etc/profile")
         if (profile.exists()) {
             val current = profile.readText()
-            if (!current.contains("export PATH")) {
+            if (!current.contains("export TERM")) {
                 profile.appendText("""
+export TERM=xterm-256color
+export HOME=/root
+export SHELL=/bin/bash
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-export PS1='\u@alpine:\w\$ '
+export PS1='\u@axiom:\w\$ '
 alias ll='ls -la'
 alias la='ls -A'
 """)
             }
         }
         File(rootfsDir, "root").mkdirs()
+        File(rootfsDir, "tmp").mkdirs()
         _setupProgress.value = 0.95f
     }
 
@@ -223,7 +226,7 @@ alias la='ls -A'
                     "LOGNAME" to "root",
                     "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                     "TMPDIR" to "/tmp",
-                    "HOSTNAME" to "axiom-alpine",
+                    "HOSTNAME" to "axiom",
                     "LD_LIBRARY_PATH" to nativeLibDir
                 )
                 val pb = ProcessBuilder(cmd)
@@ -339,7 +342,7 @@ alias la='ls -A'
         } catch (e: Exception) { "Error: ${e.message}" }
     }
 
-    fun getArch(): AlpineArch = arch
+    fun getArch(): CpuArch = arch
     fun getRootfsDir(): File = rootfsDir
 
     fun onCleared() {

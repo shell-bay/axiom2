@@ -39,11 +39,11 @@ fun SettingsScreen(settingsManager: SettingsManager, terminalViewModel: Terminal
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             title = {
-                Text("Reset Alpine Environment", fontWeight = FontWeight.Bold, color = TextMain)
+                Text("Reset Environment", fontWeight = FontWeight.Bold, color = TextMain)
             },
             text = {
                 Text(
-                    "This will delete the entire Alpine Linux installation, all files, and installed packages. The app will restart setup on next launch.",
+                    "This will delete the entire Linux environment, all files, and installed packages. The app will restart setup on next launch.",
                     color = TextDim
                 )
             },
@@ -52,7 +52,7 @@ fun SettingsScreen(settingsManager: SettingsManager, terminalViewModel: Terminal
                     onClick = {
                         terminalViewModel?.resetEnvironment()
                         showResetDialog = false
-                        android.widget.Toast.makeText(context, "Alpine environment reset", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, "Environment reset", android.widget.Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = AccentRed)
                 ) {
@@ -71,13 +71,31 @@ fun SettingsScreen(settingsManager: SettingsManager, terminalViewModel: Terminal
     Column(
         modifier = Modifier.fillMaxSize().background(Bg).padding(16.dp)
     ) {
-        Text(
-            text = "Settings",
-            color = TextMain,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 20.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Settings",
+                color = TextMain,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Surface(
+                color = AccentOrange,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
+                Text(
+                    text = "Alpha",
+                    color = Color(0xFF0D1117),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+        }
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
@@ -193,13 +211,12 @@ fun SettingsScreen(settingsManager: SettingsManager, terminalViewModel: Terminal
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Storage, null, tint = AccentOrange, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Environment Info", color = TextMain, fontWeight = FontWeight.Bold)
+                            Text("About", color = TextMain, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         listOf(
-                            "Distribution" to "Alpine Linux",
-                            "Package Manager" to "apk",
-                            "Shell" to "/bin/sh (BusyBox)"
+                            "Version" to "1.0.0-alpha",
+                            "Shell" to "/bin/bash"
                         ).forEach { (label, value) ->
                             Row {
                                 Text("$label:", color = TextDim, fontSize = 12.sp, modifier = Modifier.width(120.dp))
@@ -223,7 +240,7 @@ fun SettingsScreen(settingsManager: SettingsManager, terminalViewModel: Terminal
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "Resetting will delete the entire Alpine Linux environment and all your files inside it.",
+                            "Resetting will delete the entire Linux environment and all your files inside it.",
                             color = TextDim,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(bottom = 12.dp)
@@ -235,10 +252,14 @@ fun SettingsScreen(settingsManager: SettingsManager, terminalViewModel: Terminal
                         ) {
                             Icon(Icons.Default.DeleteForever, null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Reset Alpine Environment")
+                            Text("Reset Environment")
                         }
                     }
                 }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }

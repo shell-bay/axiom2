@@ -30,7 +30,7 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
     val setupState: State<LinuxEnvironmentManager.SetupState> = _setupState
     private val _setupProgress = mutableStateOf(0f)
     val setupProgress: State<Float> = _setupProgress
-    private val _setupMessage = mutableStateOf("Initializing...")
+    private val _setupMessage = mutableStateOf("")
     val setupMessage: State<String> = _setupMessage
     private val _needsSetup = mutableStateOf(true)
     val needsSetup: State<Boolean> = _needsSetup
@@ -72,9 +72,7 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
             restoreSessions()
             connectShell()
         } else {
-            _setupState.value = LinuxEnvironmentManager.SetupState.IDLE
-            _setupMessage.value = "Alpine environment needs setup"
-            sessions.add(TerminalSession(1, "Session 1"))
+            startSetup()
         }
     }
 
@@ -126,10 +124,10 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
         _isShellRunning.value = true
         _isConnected.value = true
         _setupState.value = LinuxEnvironmentManager.SetupState.READY
-        _setupMessage.value = "Alpine Linux ready"
+        _setupMessage.value = "Axiom ready"
 
-        terminalMachine.feed("\u001b[1;32mWelcome to Axiom Alpine Terminal\u001b[0m\r\n")
-        terminalMachine.feed("\u001b[1;34mAlpine Linux ${envManager.getArch().alpineVersion} | ${envManager.getArch().alpineArch}\u001b[0m\r\n")
+        terminalMachine.feed("\u001b[1;32mWelcome to Axiom Terminal\u001b[0m\r\n")
+        terminalMachine.feed("\u001b[1;34mArch: ${envManager.getArch().arch}\u001b[0m\r\n")
         terminalMachine.feed("Type \u001b[33mhelp\u001b[0m for available commands\r\n\r\n")
         _screenLines.value = terminalMachine.getScreenLines()
 
