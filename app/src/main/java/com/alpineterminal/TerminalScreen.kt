@@ -24,13 +24,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -304,13 +303,7 @@ private fun cropSegmentsFrom(segments: List<StyledSegment>, start: Int): List<St
 
 @Composable
 private fun TerminalKeyboardCapture(viewModel: TerminalViewModel, focusRequester: FocusRequester, fontSize: Int) {
-    val keyboardController = LocalSoftwareKeyboardController.current
-    var hasFocus by remember { mutableStateOf(false) }
     var textState by remember { mutableStateOf(TextFieldValue("")) }
-
-    LaunchedEffect(hasFocus) {
-        if (hasFocus) keyboardController?.show()
-    }
 
     BasicTextField(
         value = textState,
@@ -330,8 +323,7 @@ private fun TerminalKeyboardCapture(viewModel: TerminalViewModel, focusRequester
         },
         modifier = Modifier
             .width(1.dp).height(1.dp)
-            .focusRequester(focusRequester)
-            .onFocusChanged { hasFocus = it.isFocused },
+            .focusRequester(focusRequester),
         textStyle = TextStyle(color = Color.Transparent, fontSize = fontSize.sp),
         cursorBrush = SolidColor(Color.Transparent),
         singleLine = true
