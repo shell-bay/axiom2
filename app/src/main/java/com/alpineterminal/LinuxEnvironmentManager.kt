@@ -177,8 +177,6 @@ alias la='ls -A'
         withContext(Dispatchers.IO) {
             GZIPInputStream(inputStream).use { gzIn ->
                 val buf = ByteArray(512)
-                var totalRead = 0L
-                var entries = 0
                 while (true) {
                     val header = ByteArray(512)
                     var headerRead = 0
