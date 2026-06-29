@@ -196,9 +196,9 @@ alias la='ls -A'
                     val prefix = readTarStr(header, 345, 155)
                     val fullPath = if (prefix.isNotEmpty()) "$prefix/$name" else name
                     val entry = File(destDir, fullPath)
-                    when (typeFlag) {
-                        '5' -> entry.mkdirs()
-                        '2' -> {
+                    when {
+                        typeFlag == '5' || name.endsWith("/") -> entry.mkdirs()
+                        typeFlag == '2' -> {
                             val linkTarget = readTarStr(header, 157, 100)
                             try {
                                 java.nio.file.Files.createSymbolicLink(entry.toPath(), java.nio.file.Paths.get(linkTarget))
