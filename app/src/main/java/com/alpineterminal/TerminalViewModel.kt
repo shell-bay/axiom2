@@ -133,13 +133,19 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
         terminalMachine.feed("Type \u001b[33mhelp\u001b[0m for available commands\r\n\r\n")
         _screenLines.value = terminalMachine.getScreenLines()
 
-        outputJob = viewModelScope.launch {
+        outputJob = viewModelScope.launch(Dispatchers.Default) {
             envManager.outputFlow.collect { chunk ->
                 terminalMachine.feed(chunk)
-                _screenLines.value = terminalMachine.getScreenLines()
-                _cursorRow.value = terminalMachine.getCursorRow()
-                _cursorCol.value = terminalMachine.getCursorCol()
-                _cursorVisible.value = terminalMachine.isCursorVisible()
+                val lines = terminalMachine.getScreenLines()
+                val row = terminalMachine.getCursorRow()
+                val col = terminalMachine.getCursorCol()
+                val vis = terminalMachine.isCursorVisible()
+                withContext(Dispatchers.Main) {
+                    _screenLines.value = lines
+                    _cursorRow.value = row
+                    _cursorCol.value = col
+                    _cursorVisible.value = vis
+                }
             }
         }
 
@@ -214,13 +220,19 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
         terminalMachine.clear()
         envManager.restartShell()
         _isShellRunning.value = true
-        outputJob = viewModelScope.launch {
+        outputJob = viewModelScope.launch(Dispatchers.Default) {
             envManager.outputFlow.collect { chunk ->
                 terminalMachine.feed(chunk)
-                _screenLines.value = terminalMachine.getScreenLines()
-                _cursorRow.value = terminalMachine.getCursorRow()
-                _cursorCol.value = terminalMachine.getCursorCol()
-                _cursorVisible.value = terminalMachine.isCursorVisible()
+                val lines = terminalMachine.getScreenLines()
+                val row = terminalMachine.getCursorRow()
+                val col = terminalMachine.getCursorCol()
+                val vis = terminalMachine.isCursorVisible()
+                withContext(Dispatchers.Main) {
+                    _screenLines.value = lines
+                    _cursorRow.value = row
+                    _cursorCol.value = col
+                    _cursorVisible.value = vis
+                }
             }
         }
     }

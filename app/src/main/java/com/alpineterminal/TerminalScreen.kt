@@ -190,8 +190,18 @@ private fun TerminalOutputArea(
         }
     }
 
+    val isAtBottom by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            if (info.totalItemsCount == 0) true
+            else info.visibleItemsInfo.lastOrNull()?.index ?: 0 >= info.totalItemsCount - 2
+        }
+    }
+
     LaunchedEffect(lines.size) {
-        if (lines.isNotEmpty()) listState.animateScrollToItem(lines.size - 1)
+        if (isAtBottom && lines.isNotEmpty()) {
+            listState.scrollToItem(lines.size - 1)
+        }
     }
 
     Box(modifier = modifier.fillMaxWidth()

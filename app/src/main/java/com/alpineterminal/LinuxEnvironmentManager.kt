@@ -3,6 +3,7 @@ package com.alpineterminal
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.alpineterminal.R
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.*
@@ -31,7 +32,6 @@ data class AlpineArch(
 
 private const val TAG = "LinuxEnvManager"
 private const val ROOTFS_DIR_NAME = "alpine_rootfs"
-private const val ASSET_ROOTFS = "alpine-minirootfs.tar.gz"
 private const val SHELL_TIMEOUT_MS = 30000L
 private const val COMMAND_TIMEOUT_MS = 60000L
 
@@ -69,9 +69,6 @@ class LinuxEnvironmentManager(private val context: Context) {
 
     private val _setupMessage = MutableStateFlow("")
     val setupMessage: StateFlow<String> = _setupMessage.asStateFlow()
-
-    private val _rootfsSize = MutableStateFlow(0L)
-    val rootfsSize: StateFlow<Long> = _rootfsSize.asStateFlow()
 
     enum class SetupState {
         IDLE, EXTRACTING_ROOTFS, CONFIGURING_ENV, READY, ERROR
@@ -111,11 +108,12 @@ class LinuxEnvironmentManager(private val context: Context) {
         rootfsDir.mkdirs()
 
         withTimeout(120_000L) {
-            val assetStream = context.assets.open(ASSET_ROOTFS)
-            val totalBytes = assetStream.available().toLong()
-            _rootfsSize.value = totalBytes
-            extractTarGz(assetStream, rootfsDir, totalBytes) { p ->
-                _setupProgress.value = p
+            context.resources.openRawResourceFd(R.raw.alpine_minirootfs).use { fd ->
+                val totalBytes = fd?.length ?: 0L
+                val stream = fd?.createInputStream() ?: throw IOException("Cannot read alpine_minirootfs.tgz")
+                extractTarGz(stream, rootfsDir, totalBytes) { p ->
+                    _setupProgress.value = p
+                }
             }
         }
         _setupProgress.value = 0.75f
