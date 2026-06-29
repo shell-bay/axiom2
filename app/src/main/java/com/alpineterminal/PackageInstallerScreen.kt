@@ -41,7 +41,7 @@ fun PackageInstallerScreen(viewModel: PackageInstallerViewModel) {
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Alpine Linux apk packages",
+            text = "Linux packages (apt)",
             color = TextDim,
             fontSize = 13.sp,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -153,7 +153,7 @@ private fun PackageItem(
                     fontSize = 11.sp
                 )
                 Text(
-                    text = "apk add ${pkg.packageName}",
+                    text = "apt install ${pkg.packageName}",
                     color = AccentBlue.copy(alpha = 0.6f),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace

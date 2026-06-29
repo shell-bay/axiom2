@@ -32,23 +32,23 @@ class GitHubManager(private val context: Context, private val settingsManager: S
                 
                 api.createOrUpdateFile(
                     authHeader, owner, repoName, pathInRepo,
-                    FileContent("Updated from AlpineTerminal", content)
+                    FileContent("Updated from Axiom", content)
                 ).execute()
             }
         }
     }
 
     private fun listAllFiles(dirPath: String): List<String> {
-        val root = File(context.filesDir, "alpine_rootfs/$dirPath")
+        val root = File(context.filesDir, dirPath)
         val fileList = mutableListOf<String>()
         root.walkTopDown().filter { it.isFile }.forEach { 
-            fileList.add(it.absolutePath.removePrefix(context.filesDir.absolutePath + "/alpine_rootfs/"))
+            fileList.add(it.absolutePath.removePrefix("${context.filesDir.absolutePath}/"))
         }
         return fileList
     }
 
     private fun readAndEncodeFile(path: String): String {
-        val file = File(context.filesDir, "alpine_rootfs/$path")
+        val file = File(context.filesDir, path)
         val bytes = file.readBytes()
         return Base64.encodeToString(bytes, Base64.NO_WRAP)
     }

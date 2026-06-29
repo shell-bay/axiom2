@@ -33,7 +33,6 @@ class MainActivity : ComponentActivity() {
         val envManager = LinuxEnvironmentManager(this)
         val fileResourceManager = FileResourceManager(this)
         val settingsManager = SettingsManager(this)
-        val voiceInputManager = VoiceInputManager(this)
         val notificationHelper = NotificationHelper(this)
 
         val terminalViewModel = TerminalViewModel(envManager)
@@ -99,7 +98,7 @@ class MainActivity : ComponentActivity() {
                         ) { padding ->
                             Box(modifier = Modifier.padding(padding).imePadding()) {
                                 when (currentScreen) {
-                                    AppScreen.TERMINAL -> TerminalScreen(terminalViewModel, settingsManager, voiceInputManager)
+                                    AppScreen.TERMINAL -> TerminalScreen(terminalViewModel, settingsManager)
                                     AppScreen.SSH -> SshScreen(sshViewModel)
                                     AppScreen.FILES -> FileBrowserScreen(
                                         viewModel = fileViewModel,

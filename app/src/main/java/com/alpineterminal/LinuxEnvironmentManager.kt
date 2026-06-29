@@ -216,12 +216,12 @@ alias la='ls -A'
                     "-b", "/dev", "-b", "/proc", "-b", "/sys",
                     "-b", "${context.filesDir.absolutePath}:/root/host",
                     "-b", "/system", "-b", "/vendor",
-                    "-w", "/root", "/bin/sh", "--login"
+                    "-w", "/root", "/bin/bash", "--login", "-i"
                 )
                 val env = mutableMapOf(
                     "TERM" to "xterm-256color",
                     "HOME" to "/root",
-                    "SHELL" to "/bin/sh",
+                    "SHELL" to "/bin/bash",
                     "USER" to "root",
                     "LOGNAME" to "root",
                     "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -325,7 +325,7 @@ alias la='ls -A'
             val pb = ProcessBuilder(
                 prootPath, "-r", rootfsDir.absolutePath, "-0",
                 "-b", "/dev", "-b", "/proc", "-b", "/sys",
-                "/bin/sh", "-c", command
+                "/bin/bash", "-c", command
             )
             pb.environment().putAll(envMap)
             pb.redirectErrorStream(true)

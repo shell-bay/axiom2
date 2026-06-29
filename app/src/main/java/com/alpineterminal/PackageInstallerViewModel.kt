@@ -48,12 +48,12 @@ class PackageInstallerViewModel(
             _installLog.value = "Installing $packageName...\n"
             try {
                 val result = withContext(Dispatchers.IO) {
-                    envManager.executeCommand("apk add $packageName 2>&1")
+                    envManager.executeCommand("apt-get install -y $packageName 2>&1")
                 }
                 _installLog.value += result
-                if (result.contains("OK:", ignoreCase = true) || result.contains("installing", ignoreCase = true)) {
+                if (result.contains("Setting up", ignoreCase = true) || result.contains("already", ignoreCase = true)) {
                     _packageStatus.value = _packageStatus.value + (packageName to true)
-                    notificationHelper.showNotification("Package Installed", "$packageName added to Alpine")
+                    notificationHelper.showNotification("Package Installed", "$packageName installed")
                 } else {
                     notificationHelper.showNotification("Install Issue", "Check terminal output for $packageName")
                 }
@@ -72,7 +72,7 @@ class PackageInstallerViewModel(
             _installLog.value = "Removing $packageName...\n"
             try {
                 val result = withContext(Dispatchers.IO) {
-                    envManager.executeCommand("apk del $packageName 2>&1")
+                    envManager.executeCommand("apt-get remove -y $packageName 2>&1")
                 }
                 _installLog.value += result
                 _packageStatus.value = _packageStatus.value - packageName
@@ -91,7 +91,7 @@ class PackageInstallerViewModel(
             _installLog.value = "Updating package index...\n"
             try {
                 val result = withContext(Dispatchers.IO) {
-                    envManager.executeCommand("apk update 2>&1")
+                    envManager.executeCommand("apt-get update 2>&1")
                 }
                 _installLog.value += result
             } catch (e: Exception) {
@@ -108,7 +108,7 @@ class PackageInstallerViewModel(
             _installLog.value = "Upgrading packages...\n"
             try {
                 val result = withContext(Dispatchers.IO) {
-                    envManager.executeCommand("apk upgrade 2>&1")
+                    envManager.executeCommand("apt-get upgrade -y 2>&1")
                 }
                 _installLog.value += result
             } catch (e: Exception) {
@@ -121,7 +121,7 @@ class PackageInstallerViewModel(
 
     fun listInstalled(): String {
         return try {
-            envManager.executeCommand("apk info 2>&1")
+            envManager.executeCommand("dpkg --get-selections 2>&1")
         } catch (e: Exception) {
             "Error: ${e.message}"
         }

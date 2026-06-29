@@ -205,7 +205,7 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
     fun toggleWakeLock(context: Context) {
         try {
             val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-            if (wakeLock == null) wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AlpineTerminal::WakeLock")
+            if (wakeLock == null) wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Axiom::WakeLock")
             wakeLock?.let { lock ->
                 if (lock.isHeld) { lock.release(); _isWakeLockAcquired.value = false }
                 else { lock.acquire(10 * 60 * 1000L); _isWakeLockAcquired.value = true }

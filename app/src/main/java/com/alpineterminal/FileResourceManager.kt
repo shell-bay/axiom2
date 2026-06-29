@@ -13,11 +13,14 @@ data class AlpineFile(
 
 class FileResourceManager(private val context: Context) {
     private val hostDir = context.filesDir
+    private val hiddenDirs = setOf("axiom_rootfs", "lib", "files", "app_webview", "app_textures", "app_cache", "cache", "code_cache")
 
     fun listFiles(relativeDir: String = ""): List<AlpineFile> {
         val target = if (relativeDir.isEmpty()) hostDir else File(hostDir, relativeDir)
         if (!target.exists() || !target.isDirectory) return emptyList()
-        return target.listFiles()?.map { file ->
+        return target.listFiles()
+            ?.filter { it.name !in hiddenDirs && !it.name.startsWith(".") }
+            ?.map { file ->
             AlpineFile(
                 name = file.name,
                 path = file.absolutePath.removePrefix("${hostDir.absolutePath}/"),

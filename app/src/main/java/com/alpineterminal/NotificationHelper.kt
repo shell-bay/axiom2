@@ -20,7 +20,7 @@ class NotificationHelper(private val context: Context) {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Axiom Session Service"
-            val descriptionText = "Keeps Alpine Terminal sessions active in the background"
+            val descriptionText = "Keeps Axiom Terminal sessions active in the background"
             val importance = NotificationManager.IMPORTANCE_LOW // Low importance so it doesn't make sound
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
