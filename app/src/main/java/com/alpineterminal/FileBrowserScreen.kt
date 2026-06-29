@@ -178,7 +178,7 @@ fun FileItem(
                                 showMenu = false
                                 try {
                                     val fileManager = FileResourceManager(context)
-                                    val exportedFile = fileManager.exportFile(file.path, file.name)
+                                    val exportedFile = fileManager.exportFileToAndroid(file.path, file.name)
                                     if (exportedFile != null && exportedFile.exists()) {
                                         val fileUri = androidx.core.content.FileProvider.getUriForFile(
                                             context,
