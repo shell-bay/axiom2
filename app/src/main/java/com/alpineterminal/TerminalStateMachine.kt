@@ -32,7 +32,9 @@ data class StyledLine(
                 fontStyle = if (seg.italic) FontStyle.Italic else FontStyle.Normal,
                 textDecoration = if (seg.underline) TextDecoration.Underline else null
             )
-            builder.withStyle(style) { append(seg.text) }
+            builder.pushStyle(style)
+            builder.append(seg.text)
+            builder.popStyle()
         }
         return builder.toAnnotatedString()
     }

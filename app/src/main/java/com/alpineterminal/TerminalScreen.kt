@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
+import kotlinx.coroutines.isActive
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -117,7 +118,7 @@ private fun SetupScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(setupMessage, color = TextMain, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
                             Spacer(modifier = Modifier.height(16.dp))
-                            LinearProgressIndicator(progress = { setupProgress }, modifier = Modifier.fillMaxWidth().height(6.dp), color = AccentGreen, trackColor = Color(0xFF21262D))
+                            LinearProgressIndicator(progress = setupProgress, modifier = Modifier.fillMaxWidth().height(6.dp), color = AccentGreen, trackColor = Color(0xFF21262D))
                             Spacer(modifier = Modifier.height(8.dp))
                             Text("${(setupProgress * 100).toInt()}%", color = TextDim, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                         }
@@ -133,7 +134,7 @@ private fun TerminalSessionScreen(viewModel: TerminalViewModel, settingsManager:
     val lines by viewModel.screenLines
     val cursorRow by viewModel.cursorRow; val cursorCol by viewModel.cursorCol
     val cursorVisible by viewModel.cursorVisible
-    var fontSize by settingsManager.terminalFontSize.collectAsState()
+    val fontSize by settingsManager.terminalFontSize.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().background(TerminalBg)) {
         TerminalToolbar(viewModel, viewModel.isShellRunning.value)

@@ -1,6 +1,7 @@
 package com.alpineterminal
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -153,6 +155,7 @@ private fun SshConnectionCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SshConnectionForm(viewModel: SshViewModel) {
     Column(modifier = Modifier.fillMaxSize().background(Bg).padding(16.dp)) {
@@ -216,7 +219,7 @@ private fun SshConnectionForm(viewModel: SshViewModel) {
                     label = { Text(if (viewModel.formAuthType.value == AuthType.PASSWORD) "Password" else "Private Key") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = viewModel.formAuthType.value == AuthType.PASSWORD,
-                    visualTransformation = if (viewModel.formAuthType.value == AuthType.PASSWORD) PasswordVisualTransformation() else null,
+                    visualTransformation = if (viewModel.formAuthType.value == AuthType.PASSWORD) PasswordVisualTransformation() as VisualTransformation else null,
                     minLines = if (viewModel.formAuthType.value == AuthType.KEY) 3 else 1,
                     colors = sshFieldColors()
                 )

@@ -1,5 +1,6 @@
 package com.alpineterminal
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +21,7 @@ private val Bg = Color(0xFF0D1117)
 private val Surface = Color(0xFF161B22)
 private val AccentGreen = Color(0xFF3FB950)
 private val AccentBlue = Color(0xFF1F6FEB)
+private val AccentOrange = Color(0xFFD29922)
 private val AccentRed = Color(0xFFF85149)
 private val TextMain = Color(0xFFE6EDF3)
 private val TextDim = Color(0xFF8B949E)
