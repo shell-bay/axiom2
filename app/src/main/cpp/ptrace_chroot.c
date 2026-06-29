@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdint.h>
+#include <fcntl.h>
 #include <elf.h>
 
 static int verbose = 0;
