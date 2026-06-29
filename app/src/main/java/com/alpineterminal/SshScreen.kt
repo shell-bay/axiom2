@@ -55,7 +55,6 @@ fun SshScreen(viewModel: SshViewModel) {
 @Composable
 private fun SshConnectionList(viewModel: SshViewModel) {
     val connections by viewModel.connections
-    val error by viewModel.error
     var showDeleteDialog by remember { mutableStateOf<String?>(null) }
 
     if (showDeleteDialog != null) {
@@ -399,14 +398,14 @@ private fun SshExtraKeys(viewModel: SshViewModel) {
     Column(modifier = Modifier.fillMaxWidth().background(Surface).padding(horizontal = 4.dp, vertical = 3.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf("ESC" to "\u001b", "TAB" to "\t", "|" to "|", ";" to ";", "#" to "#", "~" to "~", "\$" to "\$", "\\" to "\\", "&" to "&")
-                .forEach { (l, v) -> SshKey(l, ctrl, alt) { viewModel.sendText(v) } }
+                .forEach { (l, v) -> SshKey(l) { viewModel.sendText(v) } }
         }
         Spacer(modifier = Modifier.height(3.dp))
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf("CTRL" to null, "ALT" to null, "-" to "-", "_" to "_", "=" to "=", "+" to "+", "*" to "*", "." to ".", "?" to "?")
                 .forEach { (l, v) ->
                     val isMod = l == "CTRL" || l == "ALT"
-                    SshKey(l, ctrl, alt, isMod, (l == "CTRL" && ctrl) || (l == "ALT" && alt)) {
+                    SshKey(l, (l == "CTRL" && ctrl) || (l == "ALT" && alt)) {
                         if (isMod) { if (l == "CTRL") ctrl = !ctrl else alt = !alt }
                         else if (ctrl && v != null && v.length == 1 && v[0] in 'A'..'Z') viewModel.sendData(byteArrayOf((v[0] - 'A' + 1).toByte()))
                         else if (alt && v != null) viewModel.sendText("\u001b$v")
@@ -417,13 +416,13 @@ private fun SshExtraKeys(viewModel: SshViewModel) {
         Spacer(modifier = Modifier.height(3.dp))
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf("(" to "(", ")" to ")", "{" to "{", "}" to "}", "[" to "[", "]" to "]", "'" to "'", "\"" to "\"", "`" to "`")
-                .forEach { (l, v) -> SshKey(l, ctrl, alt) { viewModel.sendText(v) } }
+                .forEach { (l, v) -> SshKey(l) { viewModel.sendText(v) } }
         }
     }
 }
 
 @Composable
-private fun SshKey(label: String, ctrl: Boolean, alt: Boolean, isToggle: Boolean = false, isActive: Boolean = false, onClick: () -> Unit) {
+private fun SshKey(label: String, isActive: Boolean = false, onClick: () -> Unit) {
     Box(
         modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(if (isActive) KeyActiveBg else KeyBg)
             .clickable(onClick = onClick).padding(horizontal = if (label.length > 2) 6.dp else 10.dp, vertical = 5.dp),

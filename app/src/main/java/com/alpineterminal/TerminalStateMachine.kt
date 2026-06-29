@@ -502,8 +502,8 @@ class TerminalStateMachine(
                     if (text.isNotEmpty() || segments.isEmpty()) {
                         segments.add(StyledSegment(
                             text = text,
-                            foreground = resolveColor(segFg, false),
-                            background = resolveColor(segBg, false),
+                            foreground = resolveColor(segFg),
+                            background = resolveColor(segBg),
                             bold = segBold, italic = segItalic, underline = segUnderline
                         ))
                     }
@@ -520,7 +520,7 @@ class TerminalStateMachine(
         }
     }
 
-    private fun resolveColor(ansiColor: Int, _reverse: Boolean): Color {
+    private fun resolveColor(ansiColor: Int): Color {
         return ansiColors[ansiColor.coerceIn(0, 255)] ?: ansiColors[7]!!
     }
 

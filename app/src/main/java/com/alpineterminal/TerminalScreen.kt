@@ -372,14 +372,14 @@ private fun ExtraKeysRow(viewModel: TerminalViewModel, ctrl: Boolean, alt: Boole
                 ).forEach { (l, a) ->
                     val isMod = l == "CTRL" || l == "ALT"
                     val isActive = (l == "CTRL" && ctrl) || (l == "ALT" && alt)
-                    KeyButton(l, isMod, isActive) { if (isMod) a() else a() }
+                    KeyButton(l, isActive) { if (isMod) a() else a() }
                 }
             }
             if (ctrl || alt) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 3.dp)) {
                     Text("+ letter → ", color = AccentCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
                     listOf("C", "Z", "D", "L").forEach { ch ->
-                        KeyButton(ch, false, false) {
+                        KeyButton(ch, false) {
                             if (ctrl) viewModel.sendControl(ch.first() - 'A' + 1)
                             else viewModel.sendText("\u001b${ch.lowercase()}")
                         }
@@ -391,7 +391,7 @@ private fun ExtraKeysRow(viewModel: TerminalViewModel, ctrl: Boolean, alt: Boole
 }
 
 @Composable
-private fun KeyButton(label: String, isToggle: Boolean = false, isActive: Boolean = false, onClick: () -> Unit) {
+private fun KeyButton(label: String, isActive: Boolean = false, onClick: () -> Unit) {
     Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(if (isActive) KeyActiveBg else KeyBg)
         .clickable(onClick = onClick).padding(horizontal = if (label.length > 2) 6.dp else 10.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center) {
