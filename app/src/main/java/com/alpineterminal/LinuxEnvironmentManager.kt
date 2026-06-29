@@ -67,10 +67,27 @@ class LinuxEnvironmentManager(private val context: Context) {
         IDLE, EXTRACTING_ROOTFS, CONFIGURING_ENV, READY, ERROR
     }
 
+    private fun findShell(): String {
+        return when {
+            File(rootfsDir, "bin/bash").exists() -> "/bin/bash"
+            File(rootfsDir, "usr/bin/bash").exists() -> "/usr/bin/bash"
+            File(rootfsDir, "bin/sh").exists() -> "/bin/sh"
+            File(rootfsDir, "usr/bin/sh").exists() -> "/usr/bin/sh"
+            else -> "/bin/sh"
+        }
+    }
+
+    private fun hasShell(): Boolean {
+        return File(rootfsDir, "bin/bash").exists() ||
+               File(rootfsDir, "usr/bin/bash").exists() ||
+               File(rootfsDir, "bin/sh").exists() ||
+               File(rootfsDir, "usr/bin/sh").exists()
+    }
+
     fun needsSetup(): Boolean {
         if (!prootBinary.exists() || !prootBinary.canRead()) return true
         if (!rootfsDir.exists() || !rootfsDir.isDirectory) return true
-        return !File(rootfsDir, "bin/bash").exists()
+        return !hasShell()
     }
 
     fun performSetup(onComplete: () -> Unit) {
@@ -91,7 +108,7 @@ class LinuxEnvironmentManager(private val context: Context) {
     }
 
     private suspend fun ensureRootfsDir() {
-        if (File(rootfsDir, "bin/bash").exists() || File(rootfsDir, "bin/sh").exists()) {
+        if (hasShell()) {
             _setupProgress.value = 1f
             _setupMessage.value = "Rootfs found"
             return
@@ -120,15 +137,31 @@ class LinuxEnvironmentManager(private val context: Context) {
             resolvConf.parentFile?.mkdirs()
             resolvConf.writeText("nameserver 8.8.8.8\nnameserver 1.1.1.1\n")
         }
+        val mergedUsrLinks = mapOf("bin" to "usr/bin", "sbin" to "usr/sbin", "lib" to "usr/lib", "lib64" to "usr/lib")
+        for ((linkName, target) in mergedUsrLinks) {
+            val dir = File(rootfsDir, linkName)
+            if (dir.isDirectory()) {
+                if (dir.list()?.isNotEmpty() == true && linkName == "bin") continue
+                dir.deleteRecursively()
+            }
+            if (!dir.exists()) {
+                try {
+                    java.nio.file.Files.createSymbolicLink(dir.toPath(), java.nio.file.Paths.get(target))
+                } catch (_: Exception) {
+                    dir.mkdirs()
+                }
+            }
+        }
         val shFile = File(rootfsDir, "bin/sh")
         if (!shFile.exists()) {
-            val bashFile = File(rootfsDir, "bin/bash")
-            if (bashFile.exists()) {
+            val bashPath = findShell()
+            if (bashPath.isNotEmpty()) {
                 shFile.parentFile?.mkdirs()
-                shFile.writeText("#!/bin/bash\nexec /bin/bash \"$@\"\n")
+                shFile.writeText("#!/bin/bash\nexec $bashPath \"$@\"\n")
                 shFile.setExecutable(true)
             }
         }
+        val shellPath = findShell()
         val profile = File(rootfsDir, "etc/profile")
         if (profile.exists()) {
             val current = profile.readText()
@@ -136,7 +169,7 @@ class LinuxEnvironmentManager(private val context: Context) {
                 profile.appendText("""
 export TERM=xterm-256color
 export HOME=/root
-export SHELL=/bin/bash
+export SHELL=$shellPath
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export PS1='\[\e[1;32m\]\u@axiom\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '
 alias ll='ls -la'
@@ -224,7 +257,7 @@ alias la='ls -A'
                     _output.emit("\r\n\u001b[1;31mError: proot binary not found\u001b[0m\r\n")
                     return@launch
                 }
-                val shellPath = if (File(rootfsDir, "bin/bash").exists()) "/bin/bash" else "/bin/sh"
+                val shellPath = findShell()
                 val cmd = mutableListOf(
                     prootPath, "-r", rootfsDir.absolutePath, "-0",
                     "-b", "/dev", "-b", "/proc", "-b", "/sys",
@@ -324,7 +357,7 @@ alias la='ls -A'
 
     fun restartShell() { stopShell(); startShell() }
 
-    fun isEnvironmentReady(): Boolean = rootfsDir.exists() && (File(rootfsDir, "bin/bash").exists() || File(rootfsDir, "bin/sh").exists())
+    fun isEnvironmentReady(): Boolean = rootfsDir.exists() && hasShell()
 
     fun resetEnvironment() {
         stopShell()
@@ -341,7 +374,7 @@ alias la='ls -A'
                 retries++
             }
             if (!prootBinary.exists()) return "Error: proot binary not found"
-            val shellPath = if (File(rootfsDir, "bin/bash").exists()) "/bin/bash" else "/bin/sh"
+            val shellPath = findShell()
             val envMap = mutableMapOf(
                 "TERM" to "xterm-256color",
                 "HOME" to "/root",
