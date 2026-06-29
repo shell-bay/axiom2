@@ -278,7 +278,8 @@ alias la='ls -A'
                     "LOGNAME" to "root",
                     "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                     "TMPDIR" to "/tmp",
-                    "HOSTNAME" to "axiom"
+                    "HOSTNAME" to "axiom",
+                    "PROOT_NO_SECCOMP" to "1"
                 )
                 val pb = ProcessBuilder(cmd)
                 pb.environment().clear()
@@ -387,7 +388,8 @@ alias la='ls -A'
                 "USER" to "root",
                 "LOGNAME" to "root",
                 "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                "TMPDIR" to "/tmp"
+                "TMPDIR" to "/tmp",
+                "PROOT_NO_SECCOMP" to "1"
             )
             val pb = ProcessBuilder(
                 prootPath, "-r", rootfsDir.absolutePath, "-0",
