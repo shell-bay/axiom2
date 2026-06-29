@@ -40,13 +40,7 @@ class LinuxEnvironmentManager(private val context: Context) {
     private val rootfsDir = File(context.filesDir, ROOTFS_DIR_NAME)
 
     private val prootBinary: File
-        get() {
-            val nativeDir = context.applicationInfo.nativeLibraryDir
-            return File(nativeDir, "libproot.so")
-        }
-
-    private val nativeLibDir: String
-        get() = context.applicationInfo.nativeLibraryDir
+        get() = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
 
     private var shellProcess: Process? = null
     private var shellStdin: OutputStream? = null
@@ -143,7 +137,6 @@ alias la='ls -A'
         }
         File(rootfsDir, "root").mkdirs()
         File(rootfsDir, "tmp").mkdirs()
-        File(rootfsDir, "data/data/com.termux/files/usr/tmp").mkdirs()
         File(rootfsDir, "dev/shm").mkdirs()
         _setupProgress.value = 0.95f
     }
@@ -214,13 +207,11 @@ alias la='ls -A'
             try {
                 val prootPath = prootBinary.absolutePath
                 val shellPath = if (File(rootfsDir, "bin/bash").exists()) "/bin/bash" else "/bin/sh"
-                val termuxTmp = File(rootfsDir, "data/data/com.termux/files/usr/tmp").absolutePath
                 val cmd = mutableListOf(
                     prootPath, "-r", rootfsDir.absolutePath, "-0",
                     "-b", "/dev", "-b", "/proc", "-b", "/sys",
                     "-b", "${context.filesDir.absolutePath}:/root/host",
                     "-b", "/system", "-b", "/vendor",
-                    "-b", "$termuxTmp:/data/data/com.termux/files/usr/tmp",
                     "-w", "/root", shellPath, "--login", "-i"
                 )
                 val env = mutableMapOf(
@@ -231,9 +222,7 @@ alias la='ls -A'
                     "LOGNAME" to "root",
                     "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                     "TMPDIR" to "/tmp",
-                    "HOSTNAME" to "axiom",
-                    "LD_LIBRARY_PATH" to nativeLibDir,
-                    "PROOT_TMP_DIR" to "/tmp"
+                    "HOSTNAME" to "axiom"
                 )
                 val pb = ProcessBuilder(cmd)
                 pb.environment().putAll(env)
@@ -328,9 +317,7 @@ alias la='ls -A'
         return try {
             val prootPath = prootBinary.absolutePath
             val shellPath = if (File(rootfsDir, "bin/bash").exists()) "/bin/bash" else "/bin/sh"
-            val termuxTmp = File(rootfsDir, "data/data/com.termux/files/usr/tmp").absolutePath
             val envMap = mutableMapOf(
-                "LD_LIBRARY_PATH" to nativeLibDir,
                 "TMPDIR" to "/tmp",
                 "HOME" to "/root",
                 "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -338,7 +325,6 @@ alias la='ls -A'
             val pb = ProcessBuilder(
                 prootPath, "-r", rootfsDir.absolutePath, "-0",
                 "-b", "/dev", "-b", "/proc", "-b", "/sys",
-                "-b", "$termuxTmp:/data/data/com.termux/files/usr/tmp",
                 shellPath, "-c", command
             )
             pb.environment().putAll(envMap)
