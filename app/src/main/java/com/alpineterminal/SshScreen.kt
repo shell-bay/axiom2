@@ -219,7 +219,7 @@ private fun SshConnectionForm(viewModel: SshViewModel) {
                     label = { Text(if (viewModel.formAuthType.value == AuthType.PASSWORD) "Password" else "Private Key") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = viewModel.formAuthType.value == AuthType.PASSWORD,
-                    visualTransformation = if (viewModel.formAuthType.value == AuthType.PASSWORD) PasswordVisualTransformation() as VisualTransformation else null,
+                    visualTransformation = if (viewModel.formAuthType.value == AuthType.PASSWORD) PasswordVisualTransformation() else VisualTransformation.None,
                     minLines = if (viewModel.formAuthType.value == AuthType.KEY) 3 else 1,
                     colors = sshFieldColors()
                 )

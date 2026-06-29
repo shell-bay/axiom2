@@ -34,7 +34,7 @@ data class StyledLine(
             )
             builder.pushStyle(style)
             builder.append(seg.text)
-            builder.popStyle()
+            builder.pop()
         }
         return builder.toAnnotatedString()
     }
