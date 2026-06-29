@@ -215,6 +215,15 @@ alias la='ls -A'
         scope.launch {
             try {
                 val prootPath = prootBinary.absolutePath
+                var retries = 0
+                while (!prootBinary.exists() && retries < 10) {
+                    delay(200)
+                    retries++
+                }
+                if (!prootBinary.exists()) {
+                    _output.emit("\r\n\u001b[1;31mError: proot binary not found\u001b[0m\r\n")
+                    return@launch
+                }
                 val shellPath = if (File(rootfsDir, "bin/bash").exists()) "/bin/bash" else "/bin/sh"
                 val cmd = mutableListOf(
                     prootPath, "-r", rootfsDir.absolutePath, "-0",
@@ -234,6 +243,7 @@ alias la='ls -A'
                     "HOSTNAME" to "axiom"
                 )
                 val pb = ProcessBuilder(cmd)
+                pb.environment().clear()
                 pb.environment().putAll(env)
                 pb.redirectErrorStream(true)
                 shellProcess = pb.start()
@@ -325,6 +335,12 @@ alias la='ls -A'
     fun executeCommand(command: String): String {
         return try {
             val prootPath = prootBinary.absolutePath
+            var retries = 0
+            while (!prootBinary.exists() && retries < 10) {
+                Thread.sleep(200)
+                retries++
+            }
+            if (!prootBinary.exists()) return "Error: proot binary not found"
             val shellPath = if (File(rootfsDir, "bin/bash").exists()) "/bin/bash" else "/bin/sh"
             val envMap = mutableMapOf(
                 "TERM" to "xterm-256color",
@@ -341,6 +357,7 @@ alias la='ls -A'
                 "-w", "/root",
                 shellPath, "-c", command
             )
+            pb.environment().clear()
             pb.environment().putAll(envMap)
             pb.redirectErrorStream(true)
             val process = pb.start()

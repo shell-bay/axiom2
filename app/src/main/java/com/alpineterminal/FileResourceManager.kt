@@ -13,7 +13,7 @@ data class AlpineFile(
 
 class FileResourceManager(private val context: Context) {
     private val hostDir = context.filesDir
-    private val hiddenDirs = setOf("axiom_rootfs", "lib", "files", "app_webview", "app_textures", "app_cache", "cache", "code_cache")
+    private val hiddenDirs = setOf("axiom_rootfs", "lib", "files", "app_webview", "app_textures", "app_cache", "cache", "code_cache", "databases", "shared_prefs", "no_backup")
 
     fun listFiles(relativeDir: String = ""): List<AlpineFile> {
         val target = if (relativeDir.isEmpty()) hostDir else File(hostDir, relativeDir)
@@ -67,7 +67,10 @@ class FileResourceManager(private val context: Context) {
 
     fun searchFiles(query: String): List<AlpineFile> {
         val results = mutableListOf<AlpineFile>()
+        val maxResults = 100
         hostDir.walkTopDown().forEach { file ->
+            if (results.size >= maxResults) return@forEach
+            if (file.isDirectory && (file.name in hiddenDirs || file.name.startsWith("."))) return@forEach
             if (file.name.contains(query, ignoreCase = true)) {
                 results.add(AlpineFile(
                     name = file.name,
@@ -78,6 +81,6 @@ class FileResourceManager(private val context: Context) {
                 ))
             }
         }
-        return results
+        return results.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
     }
 }

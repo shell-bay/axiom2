@@ -120,9 +120,6 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
     }
 
     private fun connectShell() {
-        envManager.startShell()
-        _isShellRunning.value = true
-        _isConnected.value = true
         _setupState.value = LinuxEnvironmentManager.SetupState.READY
         _setupMessage.value = "Axiom ready"
 
@@ -132,6 +129,21 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
         terminalMachine.feed("\u001b[1;33m  Type commands below or tap a package\u001b[0m\r\n")
         terminalMachine.feed("\u001b[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\r\n\r\n")
         _screenLines.value = terminalMachine.getScreenLines()
+
+        envManager.startShell()
+
+        viewModelScope.launch {
+            envManager.isRunning.collect { running ->
+                if (running && !_isShellRunning.value) {
+                    _isShellRunning.value = true
+                    _isConnected.value = true
+                } else if (!running && _isShellRunning.value) {
+                    _isShellRunning.value = false
+                    terminalMachine.feed("\r\n\u001b[1;31mShell disconnected\u001b[0m\r\n")
+                    _screenLines.value = terminalMachine.getScreenLines()
+                }
+            }
+        }
 
         outputJob = viewModelScope.launch(Dispatchers.Default) {
             envManager.outputFlow.collect { chunk ->
@@ -145,16 +157,6 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
                     _cursorRow.value = row
                     _cursorCol.value = col
                     _cursorVisible.value = vis
-                }
-            }
-        }
-
-        viewModelScope.launch {
-            envManager.isRunning.collect { running ->
-                _isShellRunning.value = running
-                if (!running && outputJob?.isActive == true) {
-                    terminalMachine.feed("\r\n\u001b[1;31mShell disconnected\u001b[0m\r\n")
-                    _screenLines.value = terminalMachine.getScreenLines()
                 }
             }
         }
