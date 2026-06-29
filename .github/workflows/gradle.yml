@@ -77,6 +77,11 @@ jobs:
                     // Downgraded to 1.5.0 to match Kotlin 1.9.0 alignment perfectly
                     kotlinCompilerExtensionVersion '1.5.0'
                 }
+                packaging {
+                    jniLibs {
+                        useLegacyPackaging = true
+                    }
+                }
             }
             dependencies {
                 implementation 'androidx.core:core-ktx:1.12.0'

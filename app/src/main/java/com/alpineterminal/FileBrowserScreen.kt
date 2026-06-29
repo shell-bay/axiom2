@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -137,6 +138,7 @@ fun FileItem(
     onDelete: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     ListItem(
         modifier = Modifier.clickable { onClick() },
@@ -168,6 +170,41 @@ fun FileItem(
                             showMenu = false
                         }
                     )
+                    if (!file.isDirectory) {
+                        DropdownMenuItem(
+                            text = { Text("Share") },
+                            leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
+                            onClick = {
+                                showMenu = false
+                                try {
+                                    val fileManager = FileResourceManager(context)
+                                    val exportedFile = fileManager.exportFile(file.path, file.name)
+                                    if (exportedFile != null && exportedFile.exists()) {
+                                        val fileUri = androidx.core.content.FileProvider.getUriForFile(
+                                            context,
+                                            "com.alpineterminal.fileprovider",
+                                            exportedFile
+                                        )
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                            type = context.contentResolver.getType(fileUri) ?: "application/octet-stream"
+                                            if (file.name.endsWith(".gif", ignoreCase = true)) {
+                                                type = "image/gif"
+                                            } else if (file.name.endsWith(".png", ignoreCase = true)) {
+                                                type = "image/png"
+                                            } else if (file.name.endsWith(".jpg", ignoreCase = true) || file.name.endsWith(".jpeg", ignoreCase = true)) {
+                                                type = "image/jpeg"
+                                            }
+                                            putExtra(android.content.Intent.EXTRA_STREAM, fileUri)
+                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(android.content.Intent.createChooser(intent, "Share File"))
+                                    }
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "Error sharing file: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text("Download") },
                         leadingIcon = { Icon(Icons.Default.Download, contentDescription = null) },
