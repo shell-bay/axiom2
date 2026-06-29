@@ -71,10 +71,7 @@ private fun SetupScreen(
     setupState: LinuxEnvironmentManager.SetupState, setupProgress: Float, setupMessage: String,
     onStartSetup: () -> Unit, onReset: () -> Unit
 ) {
-    val isWorking = setupState in listOf(
-        LinuxEnvironmentManager.SetupState.DOWNLOADING_ROOTFS, LinuxEnvironmentManager.SetupState.EXTRACTING_ROOTFS,
-        LinuxEnvironmentManager.SetupState.DOWNLOADING_PROOT, LinuxEnvironmentManager.SetupState.CONFIGURING_ENV
-    )
+    val isWorking = setupState == LinuxEnvironmentManager.SetupState.EXTRACTING_ROOTFS || setupState == LinuxEnvironmentManager.SetupState.CONFIGURING_ENV
     Box(modifier = Modifier.fillMaxSize().background(TerminalBg), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
             Icon(Icons.Default.Terminal, null, tint = AccentGreen, modifier = Modifier.size(64.dp))
@@ -88,10 +85,10 @@ private fun SetupScreen(
                         LinuxEnvironmentManager.SetupState.IDLE -> {
                             Text("Alpine Linux Environment", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Download and configure a minimal Alpine Linux root filesystem (~5MB).", color = TextDim, fontSize = 13.sp)
+                            Text("Extract and configure the bundled Alpine Linux root filesystem.", color = TextDim, fontSize = 13.sp)
                             Spacer(modifier = Modifier.height(24.dp))
                             Button(onClick = onStartSetup, colors = ButtonDefaults.buttonColors(containerColor = AccentGreen), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
-                                Icon(Icons.Default.Download, null, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(8.dp)); Text("Download & Install")
+                                Icon(Icons.Default.Unarchive, null, modifier = Modifier.size(18.dp)); Spacer(modifier = Modifier.width(8.dp)); Text("Extract & Install")
                             }
                         }
                         LinuxEnvironmentManager.SetupState.ERROR -> {
@@ -107,9 +104,7 @@ private fun SetupScreen(
                         }
                         else -> {
                             val icon = when (setupState) {
-                                LinuxEnvironmentManager.SetupState.DOWNLOADING_ROOTFS -> Icons.Default.CloudDownload
                                 LinuxEnvironmentManager.SetupState.EXTRACTING_ROOTFS -> Icons.Default.Unarchive
-                                LinuxEnvironmentManager.SetupState.DOWNLOADING_PROOT -> Icons.Default.Build
                                 LinuxEnvironmentManager.SetupState.CONFIGURING_ENV -> Icons.Default.Tune
                                 LinuxEnvironmentManager.SetupState.READY -> Icons.Default.CheckCircle
                                 else -> Icons.Default.HourglassEmpty
@@ -136,14 +131,15 @@ private fun TerminalSessionScreen(viewModel: TerminalViewModel, settingsManager:
     val cursorVisible by viewModel.cursorVisible
     val fontSize by settingsManager.terminalFontSize.collectAsState()
 
+    var ctrl by remember { mutableStateOf(false) }; var alt by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize().background(TerminalBg)) {
         TerminalToolbar(viewModel, viewModel.isShellRunning.value)
         TerminalOutputArea(lines, cursorRow, cursorCol, cursorVisible, fontSize,
             onZoom = { delta -> settingsManager.adjustFontSize(delta) },
             onCopyPlain = { viewModel.getPlainTerminalText() },
             modifier = Modifier.weight(1f))
-        TerminalInputArea(viewModel, voiceInputManager, fontSize)
-        ExtraKeysRow(viewModel)
+        TerminalInputArea(viewModel, voiceInputManager, fontSize, ctrl, alt)
+        ExtraKeysRow(viewModel, ctrl, alt, { ctrl = it }, { alt = it })
     }
 }
 
@@ -183,10 +179,14 @@ private fun TerminalOutputArea(
     var showCopyMenu by remember { mutableStateOf(false) }
     val blinkAlpha = remember { Animatable(1f) }
 
-    LaunchedEffect(Unit) {
-        while (isActive) {
-            blinkAlpha.animateTo(0f, animationSpec = infiniteRepeatable(tween(400), RepeatMode.Reverse))
-            blinkAlpha.animateTo(1f, animationSpec = infiniteRepeatable(tween(400), RepeatMode.Reverse))
+    LaunchedEffect(cursorVisible) {
+        if (cursorVisible) {
+            while (isActive) {
+                blinkAlpha.animateTo(0f, animationSpec = infiniteRepeatable(tween(400), RepeatMode.Reverse))
+                blinkAlpha.animateTo(1f, animationSpec = infiniteRepeatable(tween(400), RepeatMode.Reverse))
+            }
+        } else {
+            blinkAlpha.snapTo(1f)
         }
     }
 
@@ -299,7 +299,7 @@ private fun cropSegmentsFrom(segments: List<StyledSegment>, start: Int): List<St
 }
 
 @Composable
-private fun TerminalInputArea(viewModel: TerminalViewModel, voiceInputManager: VoiceInputManager, fontSize: Int) {
+private fun TerminalInputArea(viewModel: TerminalViewModel, voiceInputManager: VoiceInputManager, fontSize: Int, ctrl: Boolean = false, alt: Boolean = false) {
     var inputText by remember { mutableStateOf(TextFieldValue("")) }
     Row(modifier = Modifier.fillMaxWidth().background(TerminalSurface).padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.weight(1f).background(Color(0xFF0D1117), RoundedCornerShape(4.dp)).border(1.dp, Color(0xFF21262D), RoundedCornerShape(4.dp))) {
@@ -336,50 +336,38 @@ private fun TerminalInputArea(viewModel: TerminalViewModel, voiceInputManager: V
 }
 
 @Composable
-private fun ExtraKeysRow(viewModel: TerminalViewModel) {
-    var ctrl by remember { mutableStateOf(false) }; var alt by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.fillMaxWidth().background(TerminalSurface).padding(horizontal = 4.dp, vertical = 3.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            listOf("ESC" to { viewModel.sendText("\u001b") }, "TAB" to { viewModel.sendText("\t") },
-                "|" to { viewModel.sendText("|") }, "&" to { viewModel.sendText("&") },
-                ";" to { viewModel.sendText(";") }, "#" to { viewModel.sendText("#") },
-                "~" to { viewModel.sendText("~") }, "\$" to { viewModel.sendText("\$") }, "\\" to { viewModel.sendText("\\") })
-                .forEach { (l, a) -> KeyButton(l, false, false) { a() } }
-        }
-        Spacer(modifier = Modifier.height(3.dp))
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            listOf(
-                "CTRL" to { ctrl = !ctrl }, "ALT" to { alt = !alt },
-                "-" to { viewModel.sendText("-") }, "_" to { viewModel.sendText("_") },
-                "=" to { viewModel.sendText("=") }, "+" to { viewModel.sendText("+") },
-                "*" to { viewModel.sendText("*") }, "." to { viewModel.sendText(".") }, "?" to { viewModel.sendText("?") }
-            ).forEach { (l, a) ->
-                val isMod = l == "CTRL" || l == "ALT"
-                val isActive = (l == "CTRL" && ctrl) || (l == "ALT" && alt)
-                KeyButton(l, isMod, isActive, ctrl, alt) {
-                    if (isMod) a()
-                    else {
-                        val char = l.singleOrNull()
-                        if (ctrl && char != null && char in 'A'..'Z') viewModel.sendControl(char - 'A' + 1)
-                        else if (alt && char != null) viewModel.sendText("\u001b$char")
-                        else a()
+private fun ExtraKeysRow(viewModel: TerminalViewModel, ctrl: Boolean, alt: Boolean, onCtrlChange: (Boolean) -> Unit, onAltChange: (Boolean) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().background(TerminalSurface).padding(horizontal = 4.dp, vertical = 3.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(
+                    "ESC" to { viewModel.sendText("\u001b") },
+                    "TAB" to { viewModel.sendText("\t") },
+                    "CTRL" to { onCtrlChange(!ctrl) },
+                    "ALT" to { onAltChange(!alt) }
+                ).forEach { (l, a) ->
+                    val isMod = l == "CTRL" || l == "ALT"
+                    val isActive = (l == "CTRL" && ctrl) || (l == "ALT" && alt)
+                    KeyButton(l, isMod, isActive) { if (isMod) a() else a() }
+                }
+            }
+            if (ctrl || alt) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(top = 3.dp)) {
+                    Text("+ letter → ", color = AccentCyan, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                    listOf("C", "Z", "D", "L").forEach { ch ->
+                        KeyButton(ch, false, false) {
+                            if (ctrl) viewModel.sendControl(ch.first() - 'A' + 1)
+                            else viewModel.sendText("\u001b${ch.lowercase()}")
+                        }
                     }
                 }
             }
-        }
-        Spacer(modifier = Modifier.height(3.dp))
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            listOf("(" to { viewModel.sendText("(") }, ")" to { viewModel.sendText(")") },
-                "{" to { viewModel.sendText("{") }, "}" to { viewModel.sendText("}") },
-                "[" to { viewModel.sendText("[") }, "]" to { viewModel.sendText("]") },
-                "'" to { viewModel.sendText("'") }, "\"" to { viewModel.sendText("\"") }, "`" to { viewModel.sendText("`") })
-                .forEach { (l, a) -> KeyButton(l, false, false) { a() } }
         }
     }
 }
 
 @Composable
-private fun KeyButton(label: String, isToggle: Boolean = false, isActive: Boolean = false, ctrl: Boolean = false, alt: Boolean = false, onClick: () -> Unit) {
+private fun KeyButton(label: String, isToggle: Boolean = false, isActive: Boolean = false, onClick: () -> Unit) {
     Box(modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(if (isActive) KeyActiveBg else KeyBg)
         .clickable(onClick = onClick).padding(horizontal = if (label.length > 2) 6.dp else 10.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center) {

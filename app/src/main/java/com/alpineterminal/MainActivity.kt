@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -96,7 +97,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         ) { padding ->
-                            Box(modifier = Modifier.padding(padding)) {
+                            Box(modifier = Modifier.padding(padding).imePadding()) {
                                 when (currentScreen) {
                                     AppScreen.TERMINAL -> TerminalScreen(terminalViewModel, settingsManager, voiceInputManager)
                                     AppScreen.SSH -> SshScreen(sshViewModel)

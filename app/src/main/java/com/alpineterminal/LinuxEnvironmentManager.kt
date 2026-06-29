@@ -6,8 +6,6 @@ import android.util.Log
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.io.*
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 
@@ -16,17 +14,6 @@ data class AlpineArch(
     val alpineArch: String,
     val alpineVersion: String = "3.21"
 ) {
-    val rootfsUrl: String
-        get() = "https://dl-cdn.alpinelinux.org/alpine/v$alpineVersion/releases/$alpineArch/alpine-minirootfs-$alpineVersion.3-$alpineArch.tar.gz"
-
-    val prootUrl: String
-        get() = "https://github.com/proot-me/proot/releases/download/v5.4.0/proot-v5.4.0-${archToProot()}-static"
-
-    private fun archToProot(): String = when (alpineArch) {
-        "aarch64" -> "aarch64"; "armv7" -> "arm"; "x86_64" -> "x86_64"; "x86" -> "x86"
-        else -> "aarch64"
-    }
-
     companion object {
         fun detect(): AlpineArch {
             val abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
@@ -43,8 +30,8 @@ data class AlpineArch(
 }
 
 private const val TAG = "LinuxEnvManager"
-private const val PROOT_BIN_NAME = "proot"
 private const val ROOTFS_DIR_NAME = "alpine_rootfs"
+private const val ASSET_ROOTFS = "alpine-minirootfs.tar.gz"
 private const val SHELL_TIMEOUT_MS = 30000L
 private const val COMMAND_TIMEOUT_MS = 60000L
 
@@ -52,7 +39,15 @@ class LinuxEnvironmentManager(private val context: Context) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val arch = AlpineArch.detect()
     private val rootfsDir = File(context.filesDir, ROOTFS_DIR_NAME)
-    private val prootBinary = File(context.filesDir, PROOT_BIN_NAME)
+
+    private val prootBinary: File
+        get() {
+            val nativeDir = context.applicationInfo.nativeLibraryDir
+            return File(nativeDir, "libproot.so")
+        }
+
+    private val nativeLibDir: String
+        get() = context.applicationInfo.nativeLibraryDir
 
     private var shellProcess: Process? = null
     private var shellStdin: OutputStream? = null
@@ -75,14 +70,16 @@ class LinuxEnvironmentManager(private val context: Context) {
     private val _setupMessage = MutableStateFlow("")
     val setupMessage: StateFlow<String> = _setupMessage.asStateFlow()
 
+    private val _rootfsSize = MutableStateFlow(0L)
+    val rootfsSize: StateFlow<Long> = _rootfsSize.asStateFlow()
+
     enum class SetupState {
-        IDLE, DOWNLOADING_ROOTFS, EXTRACTING_ROOTFS, DOWNLOADING_PROOT,
-        CONFIGURING_ENV, READY, ERROR
+        IDLE, EXTRACTING_ROOTFS, CONFIGURING_ENV, READY, ERROR
     }
 
     fun needsSetup(): Boolean {
+        if (!prootBinary.exists() || !prootBinary.canRead()) return true
         if (!rootfsDir.exists() || !rootfsDir.isDirectory) return true
-        if (!prootBinary.exists() || !prootBinary.canExecute()) return true
         return !File(rootfsDir, "bin/sh").exists()
     }
 
@@ -90,7 +87,6 @@ class LinuxEnvironmentManager(private val context: Context) {
         scope.launch {
             try {
                 ensureRootfsDir()
-                ensureProotBinary()
                 configureRootfs()
                 _setupState.value = SetupState.READY
                 _setupProgress.value = 1f
@@ -106,60 +102,23 @@ class LinuxEnvironmentManager(private val context: Context) {
 
     private suspend fun ensureRootfsDir() {
         if (File(rootfsDir, "bin/sh").exists()) {
-            _setupProgress.value = 0.5f; _setupMessage.value = "Rootfs found"
+            _setupProgress.value = 1f
+            _setupMessage.value = "Rootfs found"
             return
         }
-        _setupState.value = SetupState.DOWNLOADING_ROOTFS
-        _setupMessage.value = "Downloading Alpine Linux ${arch.alpineArch}..."
+        _setupState.value = SetupState.EXTRACTING_ROOTFS
+        _setupMessage.value = "Extracting Alpine Linux..."
         rootfsDir.mkdirs()
-        val tarGzFile = File(context.cacheDir, "alpine-rootfs.tar.gz")
 
         withTimeout(120_000L) {
-            downloadFile(arch.rootfsUrl, tarGzFile) { p -> _setupProgress.value = p * 0.4f }
-        }
-
-        _setupState.value = SetupState.EXTRACTING_ROOTFS
-        _setupMessage.value = "Extracting Alpine rootfs..."
-        withTimeout(60_000L) {
-            extractTarGz(tarGzFile, rootfsDir) { p -> _setupProgress.value = 0.4f + p * 0.35f }
-        }
-
-        tarGzFile.delete()
-        _setupProgress.value = 0.75f
-    }
-
-    private suspend fun ensureProotBinary() {
-        if (prootBinary.exists() && prootBinary.canExecute()) {
-            _setupProgress.value = 0.85f; _setupMessage.value = "Proot ready"
-            return
-        }
-        _setupState.value = SetupState.DOWNLOADING_PROOT
-        _setupMessage.value = "Downloading proot for ${arch.abi}..."
-        val cachedProot = File(context.cacheDir, PROOT_BIN_NAME)
-        try {
-            withTimeout(60_000L) {
-                downloadFile(arch.prootUrl, cachedProot) { p -> _setupProgress.value = 0.75f + p * 0.10f }
+            val assetStream = context.assets.open(ASSET_ROOTFS)
+            val totalBytes = assetStream.available().toLong()
+            _rootfsSize.value = totalBytes
+            extractTarGz(assetStream, rootfsDir, totalBytes) { p ->
+                _setupProgress.value = p
             }
-            cachedProot.copyTo(prootBinary, overwrite = true)
-            prootBinary.setExecutable(true, false)
-            cachedProot.delete()
-            _setupProgress.value = 0.85f
-        } catch (e: Exception) {
-            Log.w(TAG, "Proot download failed: ${e.message}")
-            _setupMessage.value = "Proot unavailable, using system shell fallback..."
-            createFallbackShell()
-            _setupProgress.value = 0.85f
         }
-    }
-
-    private fun createFallbackShell() {
-        prootBinary.writeText("""#!/system/bin/sh
-export TERM=xterm-256color
-export HOME=/root
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-exec /system/bin/sh --login "$@"
-""")
-        prootBinary.setExecutable(true, false)
+        _setupProgress.value = 0.75f
     }
 
     private suspend fun configureRootfs() {
@@ -186,46 +145,20 @@ alias la='ls -A'
         _setupProgress.value = 0.95f
     }
 
-    private suspend fun downloadFile(urlStr: String, target: File, onProgress: (Float) -> Unit) {
+    private suspend fun extractTarGz(inputStream: InputStream, destDir: File, totalSize: Long, onProgress: (Float) -> Unit) {
         withContext(Dispatchers.IO) {
-            val url = URL(urlStr)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 15000
-            connection.readTimeout = 30000
-            connection.instanceFollowRedirects = true
-            try {
-                connection.connect()
-                connection.inputStream.use { input ->
-                    FileOutputStream(target).use { output ->
-                        val buffer = ByteArray(8192)
-                        val totalBytes = connection.contentLengthLong
-                        var totalRead = 0L
-                        var n: Int
-                        while (input.read(buffer).also { n = it } != -1) {
-                            output.write(buffer, 0, n)
-                            totalRead += n
-                            if (totalBytes > 0) onProgress(totalRead.toFloat() / totalBytes.toFloat())
-                        }
-                        output.flush()
-                    }
-                }
-            } finally {
-                connection.disconnect()
-            }
-        }
-    }
-
-    private suspend fun extractTarGz(tarGzFile: File, destDir: File, onProgress: (Float) -> Unit) {
-        withContext(Dispatchers.IO) {
-            val fileSize = tarGzFile.length()
-            GZIPInputStream(FileInputStream(tarGzFile)).use { gzIn ->
+            GZIPInputStream(inputStream).use { gzIn ->
                 val buf = ByteArray(512)
                 var totalRead = 0L
                 var entries = 0
                 while (true) {
                     val header = ByteArray(512)
                     var headerRead = 0
-                    while (headerRead < 512) { val n = gzIn.read(header, headerRead, 512 - headerRead); if (n == -1) return@withContext; headerRead += n }
+                    while (headerRead < 512) {
+                        val n = gzIn.read(header, headerRead, 512 - headerRead)
+                        if (n == -1) return@withContext
+                        headerRead += n
+                    }
                     if (header.all { it == 0.toByte() }) break
                     val name = readTarStr(header, 0, 100)
                     if (name.isEmpty()) break
@@ -252,10 +185,16 @@ alias la='ls -A'
                     }
                     val pad = (512 - (size % 512)) % 512
                     var skipped = 0L
-                    while (skipped < pad) { val n = gzIn.read(buf, 0, minOf(buf.size.toLong(), pad - skipped).toInt()); if (n == -1) break; skipped += n }
+                    while (skipped < pad) {
+                        val n = gzIn.read(buf, 0, minOf(buf.size.toLong(), pad - skipped).toInt())
+                        if (n == -1) break
+                        skipped += n
+                    }
                     totalRead += 512 + size + pad
                     entries++
-                    if (entries % 50 == 0 && fileSize > 0) onProgress(totalRead.toFloat() / fileSize.toFloat())
+                    if (entries % 50 == 0 && totalSize > 0) {
+                        onProgress((totalRead.toFloat() / (totalSize + totalRead) * 0.5f + 0.25f))
+                    }
                 }
             }
         }
@@ -270,18 +209,24 @@ alias la='ls -A'
         if (_isRunning.value) return
         scope.launch {
             try {
+                val prootPath = prootBinary.absolutePath
                 val cmd = mutableListOf(
-                    prootBinary.absolutePath, "-r", rootfsDir.absolutePath, "-0",
+                    prootPath, "-r", rootfsDir.absolutePath, "-0",
                     "-b", "/dev", "-b", "/proc", "-b", "/sys",
                     "-b", "${context.filesDir.absolutePath}:/root/host",
                     "-b", "/system", "-b", "/vendor",
                     "-w", "/root", "/bin/sh", "--login"
                 )
-                val env = mapOf(
-                    "TERM" to "xterm-256color", "HOME" to "/root", "SHELL" to "/bin/sh",
-                    "USER" to "root", "LOGNAME" to "root",
+                val env = mutableMapOf(
+                    "TERM" to "xterm-256color",
+                    "HOME" to "/root",
+                    "SHELL" to "/bin/sh",
+                    "USER" to "root",
+                    "LOGNAME" to "root",
                     "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                    "TMPDIR" to "/tmp", "HOSTNAME" to "axiom-alpine"
+                    "TMPDIR" to "/tmp",
+                    "HOSTNAME" to "axiom-alpine",
+                    "LD_LIBRARY_PATH" to nativeLibDir
                 )
                 val pb = ProcessBuilder(cmd)
                 pb.environment().putAll(env)
@@ -370,16 +315,20 @@ alias la='ls -A'
         stopShell()
         _setupState.value = SetupState.IDLE; _setupProgress.value = 0f; _setupMessage.value = ""
         try { if (rootfsDir.exists()) rootfsDir.deleteRecursively() } catch (_: Exception) {}
-        try { if (prootBinary.exists()) prootBinary.delete() } catch (_: Exception) {}
     }
 
     fun executeCommand(command: String): String {
         return try {
-            val process = ProcessBuilder(
-                prootBinary.absolutePath, "-r", rootfsDir.absolutePath, "-0",
+            val prootPath = prootBinary.absolutePath
+            val envMap = mapOf("LD_LIBRARY_PATH" to nativeLibDir)
+            val pb = ProcessBuilder(
+                prootPath, "-r", rootfsDir.absolutePath, "-0",
                 "-b", "/dev", "-b", "/proc", "-b", "/sys",
                 "/bin/sh", "-c", command
-            ).redirectErrorStream(true).start()
+            )
+            pb.environment().putAll(envMap)
+            pb.redirectErrorStream(true)
+            val process = pb.start()
             val reader = BufferedReader(InputStreamReader(process.inputStream))
             val output = StringBuilder()
             var line: String?
