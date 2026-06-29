@@ -139,16 +139,22 @@ class LinuxEnvironmentManager(private val context: Context) {
         }
         val mergedUsrLinks = mapOf("bin" to "usr/bin", "sbin" to "usr/sbin", "lib" to "usr/lib", "lib64" to "usr/lib")
         for ((linkName, target) in mergedUsrLinks) {
-            val dir = File(rootfsDir, linkName)
-            if (dir.isDirectory()) {
-                if (dir.list()?.isNotEmpty() == true && linkName == "bin") continue
-                dir.deleteRecursively()
+            val linkFile = File(rootfsDir, linkName)
+            val linkPath = linkFile.toPath()
+            val isSymlink = try { java.nio.file.Files.isSymbolicLink(linkPath) } catch (_: Exception) { false }
+            if (isSymlink) {
+                java.nio.file.Files.delete(linkPath)
+            } else if (linkFile.isDirectory()) {
+                if (linkFile.list()?.isNotEmpty() == true && linkName == "bin") continue
+                linkFile.deleteRecursively()
+            } else if (linkFile.exists()) {
+                linkFile.delete()
             }
-            if (!dir.exists()) {
+            if (!linkFile.exists()) {
                 try {
-                    java.nio.file.Files.createSymbolicLink(dir.toPath(), java.nio.file.Paths.get(target))
+                    java.nio.file.Files.createSymbolicLink(linkPath, java.nio.file.Paths.get(target))
                 } catch (_: Exception) {
-                    dir.mkdirs()
+                    linkFile.mkdirs()
                 }
             }
         }
