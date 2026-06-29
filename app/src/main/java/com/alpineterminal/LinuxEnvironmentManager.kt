@@ -39,11 +39,8 @@ class LinuxEnvironmentManager(private val context: Context) {
     private val arch = CpuArch.detect()
     private val rootfsDir = File(context.filesDir, ROOTFS_DIR_NAME)
 
-    private val prootBinary: File
-        get() = File(context.applicationInfo.nativeLibraryDir, "libproot.so")
-
-    private val nativeLibDir: String
-        get() = context.applicationInfo.nativeLibraryDir
+    private val chrootBinary: File
+        get() = File(context.applicationInfo.nativeLibraryDir, "libptrace_chroot.so")
 
     private var shellProcess: Process? = null
     private var shellStdin: OutputStream? = null
@@ -88,7 +85,7 @@ class LinuxEnvironmentManager(private val context: Context) {
     }
 
     fun needsSetup(): Boolean {
-        if (!prootBinary.exists() || !prootBinary.canRead()) return true
+        if (!chrootBinary.exists() || !chrootBinary.canRead()) return true
         if (!rootfsDir.exists() || !rootfsDir.isDirectory) return true
         return !hasShell()
     }
@@ -173,8 +170,6 @@ alias la='ls -A'
         }
         File(rootfsDir, "root").mkdirs()
         File(rootfsDir, "tmp").mkdirs()
-        File(rootfsDir, "dev/shm").mkdirs()
-        File(context.cacheDir, "proot").mkdirs()
         _setupProgress.value = 0.95f
     }
 
@@ -256,19 +251,19 @@ alias la='ls -A'
         if (_isRunning.value) return
         scope.launch {
             try {
-                val prootPath = prootBinary.absolutePath
+                val binaryPath = chrootBinary.absolutePath
                 var retries = 0
-                while (!prootBinary.exists() && retries < 10) {
+                while (!chrootBinary.exists() && retries < 10) {
                     delay(200)
                     retries++
                 }
-                if (!prootBinary.exists()) {
-                    _output.emit("\r\n\u001b[1;31mError: proot binary not found\u001b[0m\r\n")
+                if (!chrootBinary.exists()) {
+                    _output.emit("\r\n\u001b[1;31mError: ptrace_chroot binary not found\u001b[0m\r\n")
                     return@launch
                 }
                 val shellPath = findShell()
                 val cmd = mutableListOf(
-                    prootPath, "-r", rootfsDir.absolutePath, "-0",
+                    binaryPath, "-r", rootfsDir.absolutePath, "-0",
                     "-b", "/dev", "-b", "/proc", "-b", "/sys",
                     "-b", "${context.filesDir.absolutePath}:/root/host",
                     "-b", "/system", "-b", "/vendor",
@@ -282,10 +277,7 @@ alias la='ls -A'
                     "LOGNAME" to "root",
                     "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                     "TMPDIR" to "/tmp",
-                    "HOSTNAME" to "axiom",
-                    "PROOT_NO_SECCOMP" to "1",
-                    "PROOT_TMP_DIR" to "${context.cacheDir.absolutePath}/proot",
-                    "LD_LIBRARY_PATH" to nativeLibDir
+                    "HOSTNAME" to "axiom"
                 )
                 val pb = ProcessBuilder(cmd)
                 pb.environment().clear()
@@ -379,13 +371,13 @@ alias la='ls -A'
 
     fun executeCommand(command: String): String {
         return try {
-            val prootPath = prootBinary.absolutePath
+            val binaryPath = chrootBinary.absolutePath
             var retries = 0
-            while (!prootBinary.exists() && retries < 10) {
+            while (!chrootBinary.exists() && retries < 10) {
                 Thread.sleep(200)
                 retries++
             }
-            if (!prootBinary.exists()) return "Error: proot binary not found"
+            if (!chrootBinary.exists()) return "Error: ptrace_chroot binary not found"
             val shellPath = findShell()
             val envMap = mutableMapOf(
                 "TERM" to "xterm-256color",
@@ -394,13 +386,10 @@ alias la='ls -A'
                 "USER" to "root",
                 "LOGNAME" to "root",
                 "PATH" to "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                "TMPDIR" to "/tmp",
-                "PROOT_NO_SECCOMP" to "1",
-                "PROOT_TMP_DIR" to "${context.cacheDir.absolutePath}/proot",
-                "LD_LIBRARY_PATH" to nativeLibDir
+                "TMPDIR" to "/tmp"
             )
             val pb = ProcessBuilder(
-                prootPath, "-r", rootfsDir.absolutePath, "-0",
+                binaryPath, "-r", rootfsDir.absolutePath, "-0",
                 "-b", "/dev", "-b", "/proc", "-b", "/sys",
                 "-w", "/root",
                 shellPath, "-c", command

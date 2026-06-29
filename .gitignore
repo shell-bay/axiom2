@@ -4,3 +4,4 @@ build/
 *.iml
 .idea/
 github-mcp-config.json
+app/src/main/jniLibs/arm64-v8a/libptrace_chroot.so
