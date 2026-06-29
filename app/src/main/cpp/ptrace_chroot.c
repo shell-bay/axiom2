@@ -18,7 +18,7 @@ static int verbose = 0;
 #define DIE(fmt, ...) do { fprintf(stderr, "[ptrace_chroot] FATAL: " fmt "\n", ##__VA_ARGS__); exit(1); } while (0)
 #define MAX_PATH 4096
 #define MAX_BINDS 64
-#define AT_FDCWD (-100)
+#define SCRATCH_OFF 0x10000
 #define SCRATCH_OFF 0x10000
 
 struct bind_mount {
@@ -101,7 +101,6 @@ static int write_child_mem(pid_t child, uint64_t addr, const char *buf, size_t l
             word = peek_word(child, aligned);
             if (errno) return -1;
         }
-        size_t remaining = len - written;
         for (size_t i = offset; i < 8 && written < len; i++) {
             unsigned char c = (unsigned char)buf[written++];
             word &= ~((uint64_t)0xff << (i * 8));
@@ -309,7 +308,7 @@ static int handle_syscall(struct config *cfg, pid_t child,
                 modified |= handle_path_syscall(cfg, child, regs, sp, 1, 0);
                 break;
             case 291: /* statx: x0=dirfd, x1=pathname */
-                if (regs->regs[0] == AT_FDCWD)
+                if ((int64_t)regs->regs[0] == AT_FDCWD)
                     modified |= handle_path_syscall(cfg, child, regs, sp, 1, 0);
                 break;
             case 79:  /* newfstatat */
@@ -323,7 +322,7 @@ static int handle_syscall(struct config *cfg, pid_t child,
             case 35:  /* unlinkat */
                 /* fall through */
             case 49:  /* chdir */
-                if (regs->regs[0] == AT_FDCWD)
+                if ((int64_t)regs->regs[0] == AT_FDCWD)
                     modified |= handle_path_syscall(cfg, child, regs, sp, 1, 0);
                 break;
             case 221: /* execve: x0=pathname */
@@ -337,9 +336,9 @@ static int handle_syscall(struct config *cfg, pid_t child,
             case 37: /* linkat: x0=olddirfd, x1=oldpath, x2=newdirfd, x3=newpath */
                 /* fall through */
             case 38: /* renameat */
-                if (regs->regs[0] == AT_FDCWD)
+                if ((int64_t)regs->regs[0] == AT_FDCWD)
                     modified |= handle_path_syscall(cfg, child, regs, sp, 1, 0);
-                if (regs->regs[2] == AT_FDCWD)
+                if ((int64_t)regs->regs[2] == AT_FDCWD)
                     modified |= handle_path_syscall(cfg, child, regs, sp, 3, 1);
                 break;
             case 147: /* setresuid */

@@ -3,7 +3,7 @@ project("ptrace_chroot" C)
 
 add_executable(ptrace_chroot ptrace_chroot.c)
 
-target_compile_options(ptrace_chroot PRIVATE -Wall -Wextra -O2 -s)
+target_compile_options(ptrace_chroot PRIVATE -Wall -Wextra -O2)
 
 # Copy into source jniLibs so Android packages it as a native lib
 add_custom_command(TARGET ptrace_chroot POST_BUILD
