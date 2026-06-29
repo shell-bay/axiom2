@@ -16,8 +16,14 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
     private val _currentSessionIndex = mutableStateOf(0)
     val currentSessionIndex: State<Int> = _currentSessionIndex
 
-    private val _isInitializing = mutableStateOf(true)
-    val isInitializing: State<Boolean> = _isInitializing
+    private val _setupState = mutableStateOf(LinuxEnvironmentManager.SetupState.IDLE)
+    val setupState: State<LinuxEnvironmentManager.SetupState> = _setupState
+    private val _setupProgress = mutableStateOf(0f)
+    val setupProgress: State<Float> = _setupProgress
+    private val _setupMessage = mutableStateOf("Initializing...")
+    val setupMessage: State<String> = _setupMessage
+    private val _needsSetup = mutableStateOf(true)
+    val needsSetup: State<Boolean> = _needsSetup
 
     private val _screenLines = mutableStateOf<List<StyledLine>>(emptyList())
     val screenLines: State<List<StyledLine>> = _screenLines
@@ -32,23 +38,71 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
     private val _isShellRunning = mutableStateOf(false)
     val isShellRunning: State<Boolean> = _isShellRunning
 
-    private var outputJob: Job? = null
-    private val pendingInput = StringBuilder()
+    private val _isConnected = mutableStateOf(false)
+    val isConnected: State<Boolean> = _isConnected
 
-    // WakeLock
+    private var outputJob: Job? = null
+    private var setupJob: Job? = null
+
     private var wakeLock: PowerManager.WakeLock? = null
     private val _isWakeLockAcquired = mutableStateOf(false)
     val isWakeLockAcquired: State<Boolean> = _isWakeLockAcquired
 
     init {
         sessions.add(TerminalSession(1, "Session 1"))
-        initializeShell()
+        checkEnvironment()
     }
 
-    private fun initializeShell() {
+    private fun checkEnvironment() {
+        _needsSetup.value = envManager.needsSetup()
+        if (!_needsSetup.value) {
+            connectShell()
+        } else {
+            _setupState.value = LinuxEnvironmentManager.SetupState.IDLE
+            _setupMessage.value = "Alpine environment needs setup"
+        }
+    }
+
+    fun startSetup() {
+        if (setupJob?.isActive == true) return
+
+        setupJob = viewModelScope.launch {
+            _needsSetup.value = false
+
+            launch {
+                envManager.setupProgress.collect { p ->
+                    _setupProgress.value = p
+                }
+            }
+
+            launch {
+                envManager.setupState.collect { s ->
+                    _setupState.value = s
+                    _setupMessage.value = envManager.setupMessage.value
+                }
+            }
+
+            envManager.performSetup {
+                connectShell()
+            }
+
+            // Also handle error state
+            if (envManager.setupState.value == LinuxEnvironmentManager.SetupState.ERROR) {
+                _setupMessage.value = envManager.setupMessage.value
+            }
+        }
+    }
+
+    private fun connectShell() {
         envManager.startShell()
-        _isInitializing.value = false
         _isShellRunning.value = true
+        _isConnected.value = true
+        _setupState.value = LinuxEnvironmentManager.SetupState.READY
+        _setupMessage.value = "Alpine Linux ready"
+
+        terminalMachine.feed("\u001b[1;32mWelcome to Axiom Alpine Terminal\u001b[0m\r\n")
+        terminalMachine.feed("\u001b[1;34mAlpine Linux ${envManager.getArch().alpineVersion} | ${envManager.getArch().alpineArch}\u001b[0m\r\n")
+        terminalMachine.feed("Type \u001b[33mhelp\u001b[0m for available commands\r\n\r\n")
 
         outputJob = viewModelScope.launch {
             envManager.outputFlow.collect { chunk ->
@@ -62,10 +116,10 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
         }
 
         viewModelScope.launch {
-            envManager.shellExited.collect { exitCode ->
-                _isShellRunning.value = false
-                if (exitCode != 0) {
-                    terminalMachine.feed("\r\n\x1b[1;31mShell exited with code $exitCode\x1b[0m\r\n")
+            envManager.isRunning.collect { running ->
+                _isShellRunning.value = running
+                if (!running && outputJob?.isActive == true) {
+                    terminalMachine.feed("\r\n\u001b[1;31mShell disconnected\u001b[0m\r\n")
                     _screenLines.value = terminalMachine.getScreenLines()
                 }
             }
@@ -149,9 +203,10 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
 
     fun restartShell() {
         outputJob?.cancel()
+        terminalMachine.clear()
         envManager.restartShell()
         _isShellRunning.value = true
-        terminalMachine.clear()
+
         outputJob = viewModelScope.launch {
             envManager.outputFlow.collect { chunk ->
                 terminalMachine.feed(chunk)
@@ -164,14 +219,24 @@ class TerminalViewModel(private val envManager: LinuxEnvironmentManager) : ViewM
         }
     }
 
+    fun resetEnvironment() {
+        outputJob?.cancel()
+        envManager.resetEnvironment()
+        _setupState.value = LinuxEnvironmentManager.SetupState.IDLE
+        _setupProgress.value = 0f
+        _setupMessage.value = "Environment reset. Restart setup to continue."
+        _needsSetup.value = true
+        _isConnected.value = false
+        _isShellRunning.value = false
+    }
+
     override fun onCleared() {
         super.onCleared()
         outputJob?.cancel()
+        setupJob?.cancel()
         envManager.onCleared()
         try {
-            if (wakeLock?.isHeld == true) {
-                wakeLock?.release()
-            }
+            if (wakeLock?.isHeld == true) wakeLock?.release()
         } catch (_: Exception) {}
     }
 }

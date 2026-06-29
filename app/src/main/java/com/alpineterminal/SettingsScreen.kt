@@ -11,12 +11,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private val Bg = Color(0xFF0D1117)
+private val Surface = Color(0xFF161B22)
+private val AccentGreen = Color(0xFF3FB950)
+private val AccentBlue = Color(0xFF1F6FEB)
+private val AccentRed = Color(0xFFF85149)
+private val TextMain = Color(0xFFE6EDF3)
+private val TextDim = Color(0xFF8B949E)
+
 @Composable
-fun SettingsScreen(settingsManager: SettingsManager) {
+fun SettingsScreen(settingsManager: SettingsManager, terminalViewModel: TerminalViewModel? = null) {
     val themeMode by settingsManager.themeMode.collectAsState()
     val fontSize by settingsManager.terminalFontSize.collectAsState()
     val currentGithubToken by settingsManager.githubToken.collectAsState()
@@ -27,82 +36,80 @@ fun SettingsScreen(settingsManager: SettingsManager) {
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
-            title = { Text("Reset Alpine Environment", fontWeight = FontWeight.Bold) },
-            text = { 
-                Text("This will completely delete your local Alpine Linux installation, files, and installed packages. This operation cannot be undone. Are you sure?") 
+            title = {
+                Text("Reset Alpine Environment", fontWeight = FontWeight.Bold, color = TextMain)
+            },
+            text = {
+                Text(
+                    "This will delete the entire Alpine Linux installation, all files, and installed packages. The app will restart setup on next launch.",
+                    color = TextDim
+                )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        try {
-                            val rootfs = java.io.File(context.filesDir, "alpine_rootfs")
-                            if (rootfs.exists()) {
-                                rootfs.deleteRecursively()
-                            }
-                            android.widget.Toast.makeText(context, "Alpine environment reset! Restart the app to reinstall.", android.widget.Toast.LENGTH_LONG).show()
-                        } catch (e: Exception) {
-                            android.widget.Toast.makeText(context, "Reset failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                        }
+                        terminalViewModel?.resetEnvironment()
                         showResetDialog = false
+                        android.widget.Toast.makeText(context, "Alpine environment reset", android.widget.Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.textButtonColors(contentColor = AccentRed)
                 ) {
                     Text("Reset")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) {
-                    Text("Cancel")
+                    Text("Cancel", color = TextDim)
                 }
-            }
+            },
+            containerColor = Surface
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+    Column(
+        modifier = Modifier.fillMaxSize().background(Bg).padding(16.dp)
+    ) {
         Text(
             text = "Settings",
-            style = MaterialTheme.typography.headlineMedium,
+            color = TextMain,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 24.dp)
+            modifier = Modifier.padding(bottom = 20.dp)
         )
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Appearance Card
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    colors = CardDefaults.cardColors(containerColor = Surface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Palette, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Appearance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Appearance", color = TextMain, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Theme Mode", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Theme", color = TextDim, fontSize = 13.sp)
                         Spacer(modifier = Modifier.height(8.dp))
-                        
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             SettingsManager.ThemeMode.values().forEach { mode ->
                                 if (themeMode == mode) {
                                     Button(
                                         onClick = { settingsManager.setThemeMode(mode) },
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
                                     ) {
                                         Text(mode.name, fontSize = 11.sp)
                                     }
                                 } else {
                                     OutlinedButton(
                                         onClick = { settingsManager.setThemeMode(mode) },
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextDim)
                                     ) {
                                         Text(mode.name, fontSize = 11.sp)
                                     }
@@ -113,55 +120,61 @@ fun SettingsScreen(settingsManager: SettingsManager) {
                 }
             }
 
-            // Terminal Settings Card
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    colors = CardDefaults.cardColors(containerColor = Surface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Terminal, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Terminal, null, tint = AccentGreen, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Terminal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("Terminal", color = TextMain, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Font Size: ${fontSize}sp", style = MaterialTheme.typography.bodyMedium)
+                        Text("Font Size: ${fontSize}sp", color = TextDim, fontSize = 13.sp)
                         Slider(
                             value = fontSize.toFloat(),
                             onValueChange = { settingsManager.setFontSize(it.toInt()) },
                             valueRange = 10f..24f,
-                            steps = 14
+                            steps = 14,
+                            colors = SliderDefaults.colors(
+                                thumbColor = AccentGreen,
+                                activeTrackColor = AccentGreen
+                            )
                         )
                     }
                 }
             }
 
-            // Integrations Card
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    colors = CardDefaults.cardColors(containerColor = Surface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Code, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Icon(Icons.Default.Code, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Integrations", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text("GitHub Integration", color = TextMain, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         OutlinedTextField(
                             value = githubToken,
                             onValueChange = { githubToken = it },
-                            label = { Text("GitHub Personal Access Token") },
+                            label = { Text("Personal Access Token") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentBlue,
+                                cursorColor = AccentBlue,
+                                focusedLabelColor = AccentBlue
+                            ),
                             trailingIcon = {
-                                IconButton(onClick = { 
+                                IconButton(onClick = {
                                     settingsManager.setGithubToken(githubToken)
-                                    android.widget.Toast.makeText(context, "GitHub token saved!", android.widget.Toast.LENGTH_SHORT).show()
                                 }) {
-                                    Icon(Icons.Default.Save, contentDescription = "Save Token")
+                                    Icon(Icons.Default.Save, "Save", tint = AccentGreen)
                                 }
                             }
                         )
@@ -169,31 +182,56 @@ fun SettingsScreen(settingsManager: SettingsManager) {
                 }
             }
 
-            // System Maintenance Card
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f))
+                    colors = CardDefaults.cardColors(containerColor = Surface)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Storage, null, tint = AccentOrange, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Maintenance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                            Text("Environment Info", color = TextMain, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        listOf(
+                            "Distribution" to "Alpine Linux",
+                            "Package Manager" to "apk",
+                            "Shell" to "/bin/sh (BusyBox)"
+                        ).forEach { (label, value) ->
+                            Row {
+                                Text("$label:", color = TextDim, fontSize = 12.sp, modifier = Modifier.width(120.dp))
+                                Text(value, color = TextMain, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Surface)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, null, tint = AccentRed, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Reset", color = AccentRed, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Resetting the Alpine system restores default settings and wipes all internal packages and files.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            "Resetting will delete the entire Alpine Linux environment and all your files inside it.",
+                            color = TextDim,
+                            fontSize = 12.sp,
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
                         Button(
                             onClick = { showResetDialog = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Icon(Icons.Default.DeleteForever, null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Reset Alpine Environment")
                         }

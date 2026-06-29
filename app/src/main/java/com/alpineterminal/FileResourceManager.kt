@@ -2,7 +2,6 @@ package com.alpineterminal
 
 import android.content.Context
 import java.io.*
-import java.util.*
 
 data class AlpineFile(
     val name: String,
@@ -13,40 +12,40 @@ data class AlpineFile(
 )
 
 class FileResourceManager(private val context: Context) {
-    private val rootfsDir = context.filesDir.absolutePath + "/alpine_rootfs"
+    private val rootfsDir = File(context.filesDir, "alpine_rootfs")
+
+    fun isRootfsReady(): Boolean {
+        return rootfsDir.exists() && File(rootfsDir, "bin/sh").exists()
+    }
 
     fun listFiles(relativeDir: String = ""): List<AlpineFile> {
-        val dirPath = if (relativeDir.isEmpty()) rootfsDir else "$rootfsDir/$relativeDir"
-        val directory = File(dirPath)
-        
-        if (!directory.exists() || !directory.isDirectory) return emptyList()
-        
-        return directory.listFiles()?.map { file ->
+        if (!rootfsDir.exists()) return emptyList()
+        val target = if (relativeDir.isEmpty()) rootfsDir else File(rootfsDir, relativeDir)
+        if (!target.exists() || !target.isDirectory) return emptyList()
+        return target.listFiles()?.map { file ->
             AlpineFile(
                 name = file.name,
-                path = file.absolutePath.removePrefix("$rootfsDir/"),
+                path = file.absolutePath.removePrefix("${rootfsDir.absolutePath}/"),
                 isDirectory = file.isDirectory,
-                size = file.length(),
+                size = if (file.isDirectory) 0L else file.length(),
                 lastModified = file.lastModified()
             )
         }?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() })) ?: emptyList()
     }
 
     fun readFile(relativePath: String): String {
-        val file = File("$rootfsDir/$relativePath")
+        val file = File(rootfsDir, relativePath)
         if (!file.exists() || file.isDirectory) return ""
-        return file.readText()
+        return try { file.readText() } catch (_: Exception) { "" }
     }
 
     fun writeFile(relativePath: String, content: String): Boolean {
         return try {
-            val file = File("$rootfsDir/$relativePath")
+            val file = File(rootfsDir, relativePath)
             file.parentFile?.mkdirs()
             file.writeText(content)
             true
-        } catch (e: Exception) {
-            false
-        }
+        } catch (_: Exception) { false }
     }
 
     fun createFile(relativePath: String, content: String = ""): Boolean {
@@ -54,25 +53,20 @@ class FileResourceManager(private val context: Context) {
     }
 
     fun deleteFile(relativePath: String): Boolean {
-        val file = File("$rootfsDir/$relativePath")
-        return if (file.exists()) {
-            file.deleteRecursively()
-        } else {
-            false
-        }
+        val file = File(rootfsDir, relativePath)
+        return if (file.exists()) { file.deleteRecursively(); true } else false
     }
 
     fun searchFiles(query: String): List<AlpineFile> {
-        val root = File(rootfsDir)
+        if (!rootfsDir.exists()) return emptyList()
         val results = mutableListOf<AlpineFile>()
-        
-        root.walkTopDown().forEach { file ->
+        rootfsDir.walkTopDown().forEach { file ->
             if (file.name.contains(query, ignoreCase = true)) {
                 results.add(AlpineFile(
                     name = file.name,
-                    path = file.absolutePath.removePrefix("$rootfsDir/"),
+                    path = file.absolutePath.removePrefix("${rootfsDir.absolutePath}/"),
                     isDirectory = file.isDirectory,
-                    size = file.length(),
+                    size = if (file.isDirectory) 0L else file.length(),
                     lastModified = file.lastModified()
                 ))
             }
@@ -81,11 +75,22 @@ class FileResourceManager(private val context: Context) {
     }
 
     fun exportFileToAndroid(relativePath: String, destinationFileName: String): File? {
-        val sourceFile = File("$rootfsDir/$relativePath")
+        val sourceFile = File(rootfsDir, relativePath)
         if (!sourceFile.exists() || sourceFile.isDirectory) return null
-        
         val destFile = File(context.getExternalFilesDir(null), destinationFileName)
-        sourceFile.copyTo(destFile, overwrite = true)
-        return destFile
+        return try {
+            sourceFile.copyTo(destFile, overwrite = true)
+            destFile
+        } catch (_: Exception) { null }
+    }
+
+    fun getRootfsSize(): Long {
+        if (!rootfsDir.exists()) return 0L
+        return rootfsDir.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+    }
+
+    fun getFileCount(): Int {
+        if (!rootfsDir.exists()) return 0
+        return rootfsDir.walkTopDown().count() - 1
     }
 }

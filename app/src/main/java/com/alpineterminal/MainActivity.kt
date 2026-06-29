@@ -118,7 +118,7 @@ class MainActivity : ComponentActivity() {
                                         }
                                     )
                                     AppScreen.PACKAGES -> PackageInstallerScreen(viewModel = packageViewModel)
-                                    AppScreen.SETTINGS -> SettingsScreen(settingsManager)
+                                    AppScreen.SETTINGS -> SettingsScreen(settingsManager, terminalViewModel)
                                     else -> {}
                                 }
                             }
