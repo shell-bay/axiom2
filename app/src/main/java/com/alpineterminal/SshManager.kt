@@ -59,7 +59,7 @@ class SshManager {
                 }
 
                 channel = session?.openChannel("shell") as ChannelShell
-                channel?.setPtyType("xterm-256color")
+                channel?.setPty(true)
                 channel?.setPtySize(80, 24, 0, 0)
 
                 stdin = channel?.outputStream
