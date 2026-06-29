@@ -34,6 +34,10 @@ class FileResourceManager(private val context: Context) {
         return try { file.readText() } catch (_: Exception) { "" }
     }
 
+    fun createFile(relativePath: String, content: String = ""): Boolean {
+        return writeFile(relativePath, content)
+    }
+
     fun writeFile(relativePath: String, content: String): Boolean {
         return try {
             val file = File(hostDir, relativePath)
@@ -46,6 +50,16 @@ class FileResourceManager(private val context: Context) {
     fun deleteFile(relativePath: String): Boolean {
         val file = File(hostDir, relativePath)
         return if (file.exists()) { file.deleteRecursively(); true } else false
+    }
+
+    fun exportFileToAndroid(relativePath: String, destinationFileName: String): File? {
+        val sourceFile = File(hostDir, relativePath)
+        if (!sourceFile.exists() || sourceFile.isDirectory) return null
+        val destFile = File(context.getExternalFilesDir(null), destinationFileName)
+        return try {
+            sourceFile.copyTo(destFile, overwrite = true)
+            destFile
+        } catch (_: Exception) { null }
     }
 
     fun searchFiles(query: String): List<AlpineFile> {
