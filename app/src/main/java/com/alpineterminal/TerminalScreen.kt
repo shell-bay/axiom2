@@ -84,7 +84,7 @@ private fun LoadingScreen(
             Text("Terminal", color = TextDim, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
             Spacer(modifier = Modifier.height(48.dp))
             if (setupState == LinuxEnvironmentManager.SetupState.EXTRACTING_ROOTFS || setupState == LinuxEnvironmentManager.SetupState.CONFIGURING_ENV) {
-                LinearProgressIndicator(progress = setupProgress, modifier = Modifier.width(200.dp).height(4.dp), color = AccentGreen, trackColor = Color(0xFF21262D))
+                LinearProgressIndicator(progress = { setupProgress }, modifier = Modifier.width(200.dp).height(4.dp), color = AccentGreen, trackColor = Color(0xFF21262D))
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(setupMessage, color = TextDim, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
             } else {

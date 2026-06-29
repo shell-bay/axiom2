@@ -5,7 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -112,7 +112,7 @@ fun TextEditorScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.LightGray)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.LightGray)
             }
             Text(
                 text = file.name,
@@ -130,7 +130,7 @@ fun TextEditorScreen(
             }
         }
 
-        Divider(color = Color.DarkGray, thickness = 1.dp)
+        HorizontalDivider(color = Color.DarkGray, thickness = 1.dp)
 
         // Text Editing Area with Line Numbers
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {

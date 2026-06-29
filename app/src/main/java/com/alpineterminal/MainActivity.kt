@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -82,7 +83,7 @@ class MainActivity : ComponentActivity() {
                                         selected = currentScreen == AppScreen.PACKAGES,
                                         onClick = { currentScreen = AppScreen.PACKAGES },
                                         label = { Text("Packages") },
-                                        icon = { Icon(Icons.Default.List, null) }
+                                        icon = { Icon(Icons.AutoMirrored.Filled.List, null) }
                                     )
                                     NavigationBarItem(
                                         selected = currentScreen == AppScreen.SETTINGS,

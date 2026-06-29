@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -160,7 +161,7 @@ private fun SshConnectionForm(viewModel: SshViewModel) {
     Column(modifier = Modifier.fillMaxSize().background(Bg).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { viewModel.showConnectionList() }) {
-                Icon(Icons.Default.ArrowBack, null, tint = TextMain)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = TextMain)
             }
             Spacer(modifier = Modifier.width(8.dp))
             Text("SSH Connection", color = TextMain, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)

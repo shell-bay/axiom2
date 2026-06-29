@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -100,7 +101,7 @@ fun FileBrowserScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { viewModel.navigateUp() }) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Up")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Up")
             }
             Text(
                 text = if (currentPath.isEmpty()) "/root" else "/root/$currentPath",
@@ -109,7 +110,7 @@ fun FileBrowserScreen(
             )
         }
 
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         // File List
         LazyColumn(modifier = Modifier.fillMaxSize()) {
