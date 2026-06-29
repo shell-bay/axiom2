@@ -40,9 +40,6 @@ class MainActivity : ComponentActivity() {
         val sshViewModel = SshViewModel(settingsManager)
         val fileViewModel = FileViewModel(fileResourceManager)
         val packageViewModel = PackageInstallerViewModel(envManager, notificationHelper)
-        val gitHubManager = GitHubManager(this, settingsManager)
-        val gitHubViewModel = GitHubViewModel(this.application, gitHubManager, notificationHelper)
-
         setContent {
             val themeMode by settingsManager.themeMode.collectAsState()
             val isDark = themeMode == SettingsManager.ThemeMode.DARK || themeMode == SettingsManager.ThemeMode.SYSTEM

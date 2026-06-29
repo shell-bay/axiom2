@@ -173,6 +173,7 @@ alias la='ls -A'
         _setupProgress.value = 0.95f
     }
 
+    @Suppress("UNUSED_VARIABLE")
     private suspend fun extractTarGz(inputStream: InputStream, destDir: File, totalSize: Long, onProgress: (Float) -> Unit) {
         withContext(Dispatchers.IO) {
             GZIPInputStream(inputStream).use { gzIn ->
