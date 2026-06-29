@@ -102,7 +102,6 @@ class MainActivity : ComponentActivity() {
                                     AppScreen.SSH -> SshScreen(sshViewModel)
                                     AppScreen.FILES -> FileBrowserScreen(
                                         viewModel = fileViewModel,
-                                        gitHubViewModel = gitHubViewModel,
                                         onFileClick = { file -> selectedFile = file; currentScreen = AppScreen.EDITOR }
                                     )
                                     AppScreen.PACKAGES -> PackageInstallerScreen(viewModel = packageViewModel)
