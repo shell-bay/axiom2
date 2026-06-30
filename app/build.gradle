@@ -61,6 +61,26 @@ android {
     }
 }
 
+androidComponents {
+    onVariants { variant ->
+        def vName = variant.name
+        def vCap = vName.substring(0, 1).toUpperCase() + vName.substring(1)
+        def cmakeBuildDir = "${project.buildDir}/.cxx/cmake/${vName}/arm64-v8a"
+        def copyTask = tasks.register("copy${vCap}ChrootToJni", Copy) { t ->
+            t.dependsOn tasks.named("externalNativeBuild${vCap}")
+            t.from(cmakeBuildDir) {
+                include "ptrace_chroot"
+                rename { "libptrace_chroot.so" }
+            }
+            t.into("${project.projectDir}/src/main/jniLibs/arm64-v8a")
+            t.outputs.upToDateWhen { false }
+        }
+        tasks.named("merge${vCap}NativeLibs").configure {
+            dependsOn copyTask
+        }
+    }
+}
+
 dependencies {
     implementation 'androidx.core:core-ktx:1.19.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.11.0'
