@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.*
 import java.io.*
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
-import java.util.zip.ZipFile
 
 data class CpuArch(
     val abi: String,
@@ -45,58 +44,14 @@ class LinuxEnvironmentManager(private val context: Context) {
 
     private fun ensureChrootBinary(): Boolean {
         val target = chrootBinary
-        if (target.exists() && target.canExecute()) {
-            Log.d(TAG, "Chroot binary already ready at ${target.absolutePath}")
-            return true
-        }
-        Log.d(TAG, "ensureChrootBinary: target=${target.absolutePath} exists=${target.exists()}")
+        if (target.exists() && target.canExecute()) return true
         return try {
             target.parentFile?.mkdirs()
-            var copied = false
             val nativeLib = File(context.applicationInfo.nativeLibraryDir, "libptrace_chroot.so")
-            Log.d(TAG, "nativeLibraryDir=${context.applicationInfo.nativeLibraryDir}")
-            Log.d(TAG, "nativeLib=${nativeLib.absolutePath} exists=${nativeLib.exists()}")
-            if (nativeLib.exists()) {
-                nativeLib.inputStream().use { src -> target.outputStream().use { dst -> src.copyTo(dst) } }
-                copied = true
-                Log.d(TAG, "Copied from nativeLibraryDir")
-            } else {
-                Log.d(TAG, "packageCodePath=${context.packageCodePath}")
-                context.applicationInfo.splitSourceDirs?.let { Log.d(TAG, "splitDirs=${it.joinToString()}") }
-                val apkFiles = mutableListOf(File(context.packageCodePath))
-                context.applicationInfo.splitSourceDirs?.forEach { apkFiles.add(File(it)) }
-                for (apkFile in apkFiles) {
-                    Log.d(TAG, "Trying APK: ${apkFile.absolutePath} exists=${apkFile.exists()}")
-                    try {
-                        ZipFile(apkFile).use { zip ->
-                            val entry = zip.getEntry("lib/arm64-v8a/libptrace_chroot.so")
-                            Log.d(TAG, "ZIP entry lib/arm64-v8a/libptrace_chroot.so: ${entry}")
-                            if (entry != null) {
-                                zip.getInputStream(entry).use { src ->
-                                    target.outputStream().use { dst -> src.copyTo(dst) }
-                                }
-                                copied = true
-                                Log.d(TAG, "Extracted from APK zip")
-                            } else {
-                                // Try listing some entries to debug
-                                val entries = zip.entries().toList().map { it.name }.filter { it.contains("ptrace") || it.contains("lib/") }
-                                Log.d(TAG, "Relevant ZIP entries: ${entries.take(20)}")
-                            }
-                        }
-                    } catch (ze: Exception) {
-                        Log.e(TAG, "ZipFile error for ${apkFile.absolutePath}", ze)
-                    }
-                    if (copied) break
-                }
-            }
-            if (!copied) {
-                Log.e(TAG, "Failed to copy chroot binary from any source")
-                return false
-            }
+            if (!nativeLib.exists()) return false
+            nativeLib.inputStream().use { src -> target.outputStream().use { dst -> src.copyTo(dst) } }
             target.setExecutable(true)
-            val ready = target.exists() && target.canExecute()
-            Log.d(TAG, "Chroot binary ready=$ready")
-            ready
+            target.exists() && target.canExecute()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to extract chroot binary", e)
             false
