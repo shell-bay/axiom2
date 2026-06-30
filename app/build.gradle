@@ -61,6 +61,21 @@ android {
     }
 }
 
+afterEvaluate {
+    tasks.matching { it.name == 'mergeDebugNativeLibs' }.configureEach { t ->
+        t.dependsOn tasks.named('externalNativeBuildDebug')
+        t.doFirst {
+            def src = "${project.buildDir}/.cxx/cmake/debug/arm64-v8a/ptrace_chroot"
+            def dstDir = file("${project.projectDir}/src/main/jniLibs/arm64-v8a")
+            dstDir.mkdirs()
+            copy {
+                from(src) { rename { 'libptrace_chroot.so' } }
+                into dstDir
+            }
+        }
+    }
+}
+
 dependencies {
     implementation 'androidx.core:core-ktx:1.19.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.11.0'

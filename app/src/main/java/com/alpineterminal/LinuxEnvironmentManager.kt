@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.*
 import java.io.*
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
+import java.util.zip.ZipFile
 
 data class CpuArch(
     val abi: String,
@@ -47,9 +48,32 @@ class LinuxEnvironmentManager(private val context: Context) {
         if (target.exists() && target.canExecute()) return true
         return try {
             target.parentFile?.mkdirs()
+            var copied = false
             val nativeLib = File(context.applicationInfo.nativeLibraryDir, "libptrace_chroot.so")
-            if (!nativeLib.exists()) return false
-            nativeLib.inputStream().use { src -> target.outputStream().use { dst -> src.copyTo(dst) } }
+            if (nativeLib.exists()) {
+                nativeLib.inputStream().use { src -> target.outputStream().use { dst -> src.copyTo(dst) } }
+                copied = true
+            }
+            if (!copied) {
+                // Extract directly from APK as fallback
+                val apkFiles = listOfNotNull(
+                    File(context.packageCodePath),
+                    *context.applicationInfo.splitSourceDirs?.map { File(it) }?.toTypedArray() ?: emptyArray()
+                )
+                for (apk in apkFiles) {
+                    try {
+                        ZipFile(apk).use { zip ->
+                            val entry = zip.getEntry("lib/arm64-v8a/libptrace_chroot.so")
+                            if (entry != null) {
+                                zip.getInputStream(entry).use { src -> target.outputStream().use { dst -> src.copyTo(dst) } }
+                                copied = true
+                            }
+                        }
+                    } catch (_: Exception) {}
+                    if (copied) break
+                }
+            }
+            if (!copied) return false
             target.setExecutable(true)
             target.exists() && target.canExecute()
         } catch (e: Exception) {
