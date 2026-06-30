@@ -40,7 +40,23 @@ class LinuxEnvironmentManager(private val context: Context) {
     private val rootfsDir = File(context.filesDir, ROOTFS_DIR_NAME)
 
     private val chrootBinary: File
-        get() = File(context.applicationInfo.nativeLibraryDir, "libptrace_chroot.so")
+        get() = File(context.filesDir, "libptrace_chroot")
+
+    private fun ensureChrootBinary(): Boolean {
+        val target = chrootBinary
+        if (target.exists() && target.canExecute()) return true
+        return try {
+            target.parentFile?.mkdirs()
+            context.assets.open("libptrace_chroot").use { src ->
+                target.outputStream().use { dst -> src.copyTo(dst) }
+            }
+            target.setExecutable(true)
+            target.exists() && target.canExecute()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to extract chroot binary", e)
+            false
+        }
+    }
 
     private var shellProcess: Process? = null
     private var shellStdin: OutputStream? = null
@@ -85,7 +101,7 @@ class LinuxEnvironmentManager(private val context: Context) {
     }
 
     fun needsSetup(): Boolean {
-        if (!chrootBinary.exists() || !chrootBinary.canRead()) return true
+        if (!ensureChrootBinary()) return true
         if (!rootfsDir.exists() || !rootfsDir.isDirectory) return true
         return !hasShell()
     }
@@ -93,6 +109,10 @@ class LinuxEnvironmentManager(private val context: Context) {
     fun performSetup(onComplete: () -> Unit) {
         scope.launch {
             try {
+                _setupMessage.value = "Setting up chroot binary..."
+                if (!ensureChrootBinary()) {
+                    throw IOException("Failed to install ptrace_chroot binary")
+                }
                 ensureRootfsDir()
                 configureRootfs()
                 _setupState.value = SetupState.READY
@@ -252,16 +272,16 @@ alias la='ls -A'
         if (_isRunning.value) return
         scope.launch {
             try {
-                val binaryPath = chrootBinary.absolutePath
                 var retries = 0
-                while (!chrootBinary.exists() && retries < 10) {
+                while (!ensureChrootBinary() && retries < 10) {
                     delay(200)
                     retries++
                 }
-                if (!chrootBinary.exists()) {
+                if (!chrootBinary.exists() || !chrootBinary.canExecute()) {
                     _output.emit("\r\n\u001b[1;31mError: ptrace_chroot binary not found\u001b[0m\r\n")
                     return@launch
                 }
+                val binaryPath = chrootBinary.absolutePath
                 val shellPath = findShell()
                 val cmd = mutableListOf(
                     binaryPath, "-r", rootfsDir.absolutePath, "-0",
@@ -372,13 +392,13 @@ alias la='ls -A'
 
     fun executeCommand(command: String): String {
         return try {
-            val binaryPath = chrootBinary.absolutePath
             var retries = 0
-            while (!chrootBinary.exists() && retries < 10) {
+            while (!ensureChrootBinary() && retries < 10) {
                 Thread.sleep(200)
                 retries++
             }
-            if (!chrootBinary.exists()) return "Error: ptrace_chroot binary not found"
+            if (!chrootBinary.exists() || !chrootBinary.canExecute()) return "Error: ptrace_chroot binary not found"
+            val binaryPath = chrootBinary.absolutePath
             val shellPath = findShell()
             val envMap = mutableMapOf(
                 "TERM" to "xterm-256color",
