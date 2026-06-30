@@ -46,40 +46,40 @@ class LinuxEnvironmentManager(private val context: Context) {
     private fun ensureChrootBinary(): Boolean {
         val target = chrootBinary
         if (target.exists() && target.canExecute()) return true
-        return try {
-            target.parentFile?.mkdirs()
-            var copied = false
+        target.parentFile?.mkdirs()
+
+        // 1. Extract from raw resource (most reliable)
+        try {
+            context.resources.openRawResource(R.raw.ptrace_chroot).use { src ->
+                target.outputStream().use { dst -> src.copyTo(dst) }
+            }
+            target.setExecutable(true)
+            if (target.exists() && target.canExecute()) return true
+        } catch (_: Exception) {}
+
+        // 2. Copy from nativeLibraryDir (if extracted by Android)
+        try {
             val nativeLib = File(context.applicationInfo.nativeLibraryDir, "libptrace_chroot.so")
             if (nativeLib.exists()) {
                 nativeLib.inputStream().use { src -> target.outputStream().use { dst -> src.copyTo(dst) } }
-                copied = true
+                target.setExecutable(true)
+                if (target.exists() && target.canExecute()) return true
             }
-            if (!copied) {
-                // Extract directly from APK as fallback
-                val apkFiles = listOfNotNull(
-                    File(context.packageCodePath),
-                    *context.applicationInfo.splitSourceDirs?.map { File(it) }?.toTypedArray() ?: emptyArray()
-                )
-                for (apk in apkFiles) {
-                    try {
-                        ZipFile(apk).use { zip ->
-                            val entry = zip.getEntry("lib/arm64-v8a/libptrace_chroot.so")
-                            if (entry != null) {
-                                zip.getInputStream(entry).use { src -> target.outputStream().use { dst -> src.copyTo(dst) } }
-                                copied = true
-                            }
-                        }
-                    } catch (_: Exception) {}
-                    if (copied) break
+        } catch (_: Exception) {}
+
+        // 3. Extract directly from APK Zip
+        try {
+            ZipFile(context.packageCodePath).use { zip ->
+                val entry = zip.getEntry("lib/arm64-v8a/libptrace_chroot.so")
+                if (entry != null) {
+                    zip.getInputStream(entry).use { src -> target.outputStream().use { dst -> src.copyTo(dst) } }
+                    target.setExecutable(true)
+                    return target.exists() && target.canExecute()
                 }
             }
-            if (!copied) return false
-            target.setExecutable(true)
-            target.exists() && target.canExecute()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to extract chroot binary", e)
-            false
-        }
+        } catch (_: Exception) {}
+
+        return false
     }
 
     private var shellProcess: Process? = null

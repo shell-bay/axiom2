@@ -62,18 +62,35 @@ android {
 }
 
 afterEvaluate {
-    tasks.matching { it.name == 'mergeDebugNativeLibs' }.configureEach { t ->
-        t.dependsOn tasks.named('externalNativeBuildDebug')
-        t.doFirst {
+    // Copy CMake executable to res/raw/ (most reliable bundling method)
+    def copyToRaw = tasks.register("copyChrootToRaw") {
+        dependsOn tasks.named("externalNativeBuildDebug")
+        doLast {
             def src = "${project.buildDir}/.cxx/cmake/debug/arm64-v8a/ptrace_chroot"
-            def dstDir = file("${project.projectDir}/src/main/jniLibs/arm64-v8a")
+            def dstDir = file("${project.projectDir}/src/main/res/raw")
             dstDir.mkdirs()
             copy {
-                from(src) { rename { 'libptrace_chroot.so' } }
+                from(src) { rename { "ptrace_chroot" } }
                 into dstDir
             }
         }
     }
+    tasks.named("mergeDebugResources").configure { dependsOn copyToRaw }
+
+    // Also copy to jniLibs as fallback
+    def copyToJni = tasks.register("copyChrootToJni") {
+        dependsOn tasks.named("externalNativeBuildDebug")
+        doLast {
+            def src = "${project.buildDir}/.cxx/cmake/debug/arm64-v8a/ptrace_chroot"
+            def dstDir = file("${project.projectDir}/src/main/jniLibs/arm64-v8a")
+            dstDir.mkdirs()
+            copy {
+                from(src) { rename { "libptrace_chroot.so" } }
+                into dstDir
+            }
+        }
+    }
+    tasks.named("mergeDebugNativeLibs").configure { dependsOn copyToJni }
 }
 
 dependencies {
